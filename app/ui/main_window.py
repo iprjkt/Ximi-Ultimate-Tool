@@ -10,7 +10,14 @@ Integrates:
 
 import os
 from typing import Optional
-from PyQt6.QtCore import QPoint, QSize, Qt, QTimer
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QPoint,
+    QPropertyAnimation,
+    QSize,
+    Qt,
+    QTimer
+)
 from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
@@ -20,7 +27,6 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMenu,
     QPushButton,
-    QStackedWidget,
     QVBoxLayout,
     QWidget
 )
@@ -28,6 +34,7 @@ from app.core.adb_manager import ADBManager
 from app.core.explorer_manager import ExplorerManager
 from app.core.fastboot_manager import FastbootManager
 from app.core.settings_manager import SettingsManager
+from app.ui.components.animated_stack import AnimatedStackedWidget
 from app.ui.floating_bar import FloatingBottomBar
 from app.ui.i18n import I18nManager, tr
 from app.ui.styles import get_theme_qss
@@ -122,8 +129,8 @@ class MainWindow(QMainWindow):
         # 1. Top Header Bar (Device status, Reboot buttons)
         self.setup_header_bar()
 
-        # 2. Main Stacked Views
-        self.stack = QStackedWidget()
+        # 2. Main Stacked Views (Animated Slide & Fade Transitions)
+        self.stack = AnimatedStackedWidget()
         
         self.view_adb = ADBView(self.adb, self)
         self.view_fastboot = FastbootView(self.fastboot, self)
@@ -152,17 +159,30 @@ class MainWindow(QMainWindow):
         # Reposition floating bar to center bottom
         self.position_floating_bar()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(60, self.animate_floating_bar_entrance)
+
+    def animate_floating_bar_entrance(self):
+        if not hasattr(self, "floating_bar") or not self.floating_bar:
+            return
+        bar_width = self.floating_bar.sizeHint().width()
+        bar_height = self.floating_bar.sizeHint().height()
+        x = (self.width() - bar_width) // 2
+        target_y = self.height() - bar_height - 20
+        start_y = self.height() + 50
+        self.floating_bar.setGeometry(x, start_y, bar_width, bar_height)
+
+        self.bar_entry_anim = QPropertyAnimation(self.floating_bar, b"pos", self)
+        self.bar_entry_anim.setDuration(450)
+        self.bar_entry_anim.setEasingCurve(QEasingCurve.Type.OutBack)
+        self.bar_entry_anim.setStartValue(QPoint(x, start_y))
+        self.bar_entry_anim.setEndValue(QPoint(x, target_y))
+        self.bar_entry_anim.start()
+
     def setup_header_bar(self):
         self.header_frame = QFrame()
         self.header_frame.setObjectName("HeaderFrame")
-        self.header_frame.setStyleSheet("""
-            #HeaderFrame {
-                background-color: rgba(28, 28, 42, 0.7);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 16px;
-                padding: 4px 12px;
-            }
-        """)
         h_layout = QHBoxLayout(self.header_frame)
         h_layout.setContentsMargins(12, 6, 12, 6)
         h_layout.setSpacing(10)
@@ -232,7 +252,7 @@ class MainWindow(QMainWindow):
         self.position_floating_bar()
 
     def on_tab_changed(self, index: int):
-        self.stack.setCurrentIndex(index)
+        self.stack.slide_to_index(index)
         # If navigating to settings, refresh device card
         if index == 4:
             self.view_settings.refresh_device_card()
