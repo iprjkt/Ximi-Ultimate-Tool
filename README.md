@@ -24,16 +24,19 @@
 - **Aksi Fleksibel**: Uninstall (`--user 0`), Restore/Reinstall (`install-existing`), Disable (`disable-user`), dan Enable.
 - **Logcat & Dmesg Viewer**: Pemantau log kernel (*dmesg*) dan log sistem (*logcat*) secara *real-time* dengan opsi filter dan ekspor ke file `.txt`/`.log`.
 
-### 2. 📁 Root Explorer
-- **Dukungan Dual-Mode**: Beroperasi dalam mode **Root (`su`)** penuh dengan fallback mode standar non-root.
-- **Operasi Berkas Lengkap**:
-  - Buat berkas baru (*touch*) & folder baru (*mkdir*).
-  - Ganti nama (*rename*), salin (*copy*), dan pindahkan (*move*).
-  - Ekstrak arsip ZIP langsung di perangkat.
-  - **Push File**: Kirim berkas/folder dari PC ke Android (dengan penanganan izin otomatis ke direktori sistem/root).
-  - **Pull File**: Unduh berkas dari Android ke PC.
-  - **In-App Text Editor**: Buka dan sunting berkas teks sistem (seperti `build.prop`, `hosts`, dll.) langsung di aplikasi.
-  - Ubah perizinan berkas (*chmod*).
+### 2. 📁 Dual-Panel Explorer (Gaya MT Manager)
+- **Konsep Dua Panel (Dual-Panel)**:
+  - **Panel Kiri (PC Storage)**: Menjelajahi berkas dan folder di komputer lokal pengguna.
+  - **Panel Kanan (Android Storage)**: Menjelajahi direktori ponsel Android dengan dukungan mode **Root (`su`)** penuh serta fallback non-root.
+- **Transfer Dua Arah Cepat**:
+  - Tombol **`Salin ke Android ➜`**: Menyalin file/folder yang dipilih dari PC langsung ke direktori Android yang sedang dibuka di panel kanan.
+  - Tombol **`⬅ Salin ke PC`**: Menarik file/folder yang dipilih dari Android langsung ke direktori PC yang sedang dibuka di panel kiri.
+- **Operasi Berkas Lengkap pada Kedua Panel**:
+  - Buat folder baru (*mkdir*) & berkas baru (*touch*).
+  - Ganti nama (*rename*), salin (*copy*), dan hapus (*delete*).
+  - Ekstrak arsip ZIP langsung di PC maupun di perangkat Android.
+  - **In-App Text Editor**: Membuka dan mengedit berkas teks sistem (seperti `build.prop`, `hosts`, dll.) atau berkas lokal langsung di aplikasi.
+  - Tampilan izin berkas (*permissions*) & tanggal modifikasi.
 
 ### 3. 💻 Terminal Shell Interaktif
 - Terminal interaktif Android dengan tombol toggle cepat antara **Root Shell (`su`)** dan **Standard Shell (`sh`)**.
