@@ -8,98 +8,98 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6?style=for-the-badge&logo=linux&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-**Ximi Ultimate Tool** adalah utility tool Android komprehensif berbasis Python & PyQt6 dengan desain modern **MIUIX / Xiaomi HyperOS Liquid Glass**, dirancang khusus untuk pengoperasian ADB dan Fastboot yang aman, cepat, dan intuitif.
+**Ximi Ultimate Tool** is a comprehensive, all-in-one Android utility tool built with Python & PyQt6 featuring a modern **MIUIX / Xiaomi HyperOS Liquid Glass** user interface. Engineered specifically for secure, high-speed, and intuitive ADB and Fastboot management.
 
-[Fitur Utama](#-fitur-utama) • [Instalasi](#-instalasi) • [Tampilan UI](#-konsep-interface-ui) • [Dokumentasi Fitur](#-panduan-fitur) • [Komunitas](#-komunitas)
+[Key Features](#-key-features) • [Installation](#-installation--quick-start) • [UI Concept](#-interface-and-ui-concept) • [Project Structure](#-project-structure) • [Community](#-community--developer)
 
 </div>
 
 ---
 
-## 🌟 Fitur Utama
+## 🌟 Key Features
 
 ### 1. ⚡ Debloater (ADB)
-- **Debloat Otomatis**: Dilengkapi database kurasi bloatware Xiaomi, HyperOS, MIUI, Google, dan Facebook. Pengguna dapat memilih/menghilangkan centang (*unchecklist*) aplikasi yang masih dibutuhkan sebelum proses eksekusi.
-- **Debloat Manual**: Input langsung nama paket (*package name*) atau telusuri seluruh aplikasi sistem/pengguna yang terpasang dengan filter pencarian instan.
-- **Aksi Fleksibel**: Uninstall (`--user 0`), Restore/Reinstall (`install-existing`), Disable (`disable-user`), dan Enable.
-- **Logcat & Dmesg Viewer**: Pemantau log kernel (*dmesg*) dan log sistem (*logcat*) secara *real-time* dengan opsi filter dan ekspor ke file `.txt`/`.log`.
+- **Automatic Debloat**: Powered by a curated database of Xiaomi, HyperOS, MIUI, Google, and Facebook bloatware. Users can easily review and uncheck any applications they still need before execution.
+- **Manual Debloat**: Enter any package name directly or browse/filter through all installed user, system, or disabled packages with instant search.
+- **Flexible Package Operations**: Uninstall (`--user 0`), Restore/Reinstall (`install-existing`), Disable (`disable-user`), and Enable.
+- **Real-Time Logcat & Kernel Dmesg**: Integrated streaming monitors for system logs (*logcat*) and kernel logs (*dmesg*) with live filtering and export to `.txt`/`.log` files.
 
-### 2. 📁 Dual-Panel Explorer (Gaya MT Manager)
-- **Konsep Dua Panel (Dual-Panel)**:
-  - **Panel Kiri (PC Storage)**: Menjelajahi berkas dan folder di komputer lokal pengguna.
-  - **Panel Kanan (Android Storage)**: Menjelajahi direktori ponsel Android dengan dukungan mode **Root (`su`)** penuh serta fallback non-root.
-- **Transfer Dua Arah Cepat**:
-  - Tombol **`Salin ke Android ➜`**: Menyalin file/folder yang dipilih dari PC langsung ke direktori Android yang sedang dibuka di panel kanan.
-  - Tombol **`⬅ Salin ke PC`**: Menarik file/folder yang dipilih dari Android langsung ke direktori PC yang sedang dibuka di panel kiri.
-- **Operasi Berkas Lengkap pada Kedua Panel**:
-  - Buat folder baru (*mkdir*) & berkas baru (*touch*).
-  - Ganti nama (*rename*), salin (*copy*), dan hapus (*delete*).
-  - Ekstrak arsip ZIP langsung di PC maupun di perangkat Android.
-  - **In-App Text Editor**: Membuka dan mengedit berkas teks sistem (seperti `build.prop`, `hosts`, dll.) atau berkas lokal langsung di aplikasi.
-  - Tampilan izin berkas (*permissions*) & tanggal modifikasi.
+### 2. 📁 Dual-Panel Explorer (MT Manager Style)
+- **Two-Panel Workflow**:
+  - **Left Panel (PC Storage)**: Browse and manage local folders and files on your computer.
+  - **Right Panel (Android Storage)**: Browse Android device directories with full **Root (`su`)** mode or non-root fallback.
+- **Seamless Bidirectional File Transfer**:
+  - **`Copy to Android ➜`**: Copies selected files or folders from your PC directly into the active Android destination folder.
+  - **`⬅ Copy to PC`**: Pulls selected files or folders from Android directly into the active PC destination folder.
+- **Complete File Management Across Both Panels**:
+  - Create new folders (*mkdir*) and new files (*touch*).
+  - Rename (*mv*), copy (*cp*), and delete (*rm*).
+  - Direct ZIP archive extraction on both PC and Android.
+  - **In-App Text Editor**: View and modify system text configuration files (e.g. `build.prop`, `hosts`, etc.) or local scripts directly within the app.
+  - File permissions (*chmod*) inspection and timestamp display.
 
-### 3. 💻 Terminal Shell Interaktif
-- Terminal interaktif Android dengan tombol toggle cepat antara **Root Shell (`su`)** dan **Standard Shell (`sh`)**.
-- Mendukung riwayat perintah (*command history* menggunakan tombol panah atas/bawah).
-- Dilengkapi custom command bawaan **`fastfetch`** ala Linux dengan logo ASCII Xiaomi HyperOS yang menampilkan spesifikasi lengkap perangkat (OS, Kernel, Uptime, Resolusi Layar, CPU, RAM, Storage, Baterai, dan Security Patch).
+### 3. 💻 Interactive Shell Terminal
+- Android shell terminal with a quick toggle between **Root Shell (`su`)** and **Standard Shell (`sh`)**.
+- Command history navigation using Up/Down arrow keys.
+- Custom built-in **`fastfetch`** command featuring an ASCII HyperOS logo and system diagnostic summary (OS version, Kernel, Uptime, Screen Resolution, CPU/SOC, RAM, Storage, Battery, and Security Patch date).
 
-### 4. 🚀 Fastboot Flasher (Solusi Alternatif Mi Flash)
-- **Single Partition Flasher**: Flash partisi spesifik (`boot`, `init_boot`, `vendor_boot`, `recovery`, `vbmeta`, `vbmeta_system`, `vbmeta_vendor`, `dtbo`, `super`, `cust`, dll.) dilengkapi tombol aktivasi flag *disable verity & verification*.
-- **Pencegah Anti-Brick Bootloader**: Mengatasi kelemahan fatal Mi Flash yang kerap mengunci bootloader secara tidak sengaja:
-  1. *Clean Flash (Format Data)*: Menghapus data/userdata tanpa mengunci bootloader (**Keep Unlocked**).
-  2. *Clean Flash without Format Data (Dirty Flash)*: Memperbarui ROM tanpa menghapus data pengguna.
-  3. *Clean Flash + Lock Bootloader*: Opsi penguncian dengan sistem **konfirmasi ganda** guna mencegah *hard brick* akibat ROM beda wilayah (*cross-region*).
+### 4. 🚀 Fastboot Flasher (Reliable Mi Flash Alternative)
+- **Single Partition Flasher**: Flash individual partitions (`boot`, `init_boot`, `vendor_boot`, `recovery`, `vbmeta`, `vbmeta_system`, `vbmeta_vendor`, `dtbo`, `super`, `cust`, etc.) with optional *disable-verity & disable-verification* flags.
+- **Accidental Bootloader Lock Prevention**: Eliminates the critical flaw of official Mi Flash by ensuring transparency and explicit consent:
+  1. *Clean Flash (Format Data)*: Wipes userdata and caches while keeping the bootloader safely **UNLOCKED**.
+  2. *Clean Flash without Format Data (Dirty Flash)*: Flashes system partitions while preserving user data and personal files.
+  3. *Clean Flash + Lock Bootloader*: Flashes and locks the bootloader with **strict confirmation warnings** to prevent hard-brick risks from cross-region flashing.
 - **Advance Mode (Partition Selector)**:
-  - Memindai skrip resmi fastboot (`flash_all.bat` / `flash_all.sh`).
-  - Pengguna dapat menghilangkan centang (*unchecklist*) partisi berisiko tinggi seperti `preloader`, `cust`, atau `persist`.
-  - Partisi yang tidak dicentang otomatis dilewati/dikomentari saat proses flashing.
-  - Output log terminal interaktif secara *real-time* dengan bilah progres dan tombol pembatalan (*abort*).
+  - Parses official fastboot flash scripts (`flash_all.bat` / `flash_all.sh`).
+  - Allows users to selectively uncheck sensitive or dangerous partitions such as `preloader`, `cust`, or `persist`.
+  - Unchecked partitions are automatically skipped/commented out during flashing execution.
+  - Live color-coded terminal log output with progress indicator and safe abort option.
 
-### 5. 🎨 Konsep Interface UI (MIUIX Liquid Glass)
-- **Floating Bottom Bar**: Navigasi pil mengambang di bagian bawah layar bergaya **iOS 26 / HyperOS Liquid Glass** dengan efek transparan *frosted glass* dan aksen glow halus.
-- **Menu Settings & About Phone**:
-  - Mengadopsi tata letak kartu *"About Phone"* HyperOS resmi (sesuai referensi [example.png](file:///run/media/fxxyz73/sigeonpex/Ximi-Ultimate-Tool/example.png)).
-  - Membaca versi HyperOS langsung dari properti `ro.mi.os.version.incremental`, nama model/pasar, CPU/chipset, kapasitas RAM, penyimpanan, dan baterai.
-- **Multi-Bahasa (Bilingual)**: Tersedia pilihan Bahasa Indonesia dan Bahasa Inggris dengan pergantian bahasa secara dinamis tanpa perlu restart aplikasi.
-- **Kustomisasi Tema**:
-  - Mode Gelap (*HyperOS Midnight*).
-  - Mode Terang (*MIUIX Clean*).
-  - Mendukung kustomisasi wallpaper latar belakang (*custom background image*) dengan lapisan overlay cerdas.
-
----
-
-## 💻 Persyaratan Sistem
-
-- **Sistem Operasi**: Linux (Arch, Ubuntu, Debian, Fedora, dll.) atau Windows 10/11.
-- **Python**: Versi 3.10 ke atas.
-- **Android Platform Tools**: `adb` dan `fastboot` terpasang di sistem.
+### 5. 🎨 Interface and UI Concept (MIUIX Liquid Glass)
+- **Floating Bottom Bar**: Docked pill-shaped bottom navigation inspired by **iOS 26 / HyperOS Liquid Glass** with frosted glass blur, translucent backdrop, and glowing indicators.
+- **Settings & "About Phone" Card**:
+  - Faithfully reproduces the authentic Xiaomi HyperOS *"About Phone"* card layout (based on [example.png](file:///run/media/fxxyz73/sigeonpex/Ximi-Ultimate-Tool/example.png)).
+  - Dynamically reads `ro.mi.os.version.incremental`, market name, model, CPU chipset, RAM, storage, and battery capacity via ADB.
+- **Bilingual Support**: Instant live switching between **English** and **Bahasa Indonesia** without needing to restart the application.
+- **Theme Customization**:
+  - Dark Mode (*HyperOS Midnight*).
+  - Light Mode (*MIUIX Clean*).
+  - Custom background wallpaper support with adaptive glass tint overlays.
 
 ---
 
-## 🚀 Panduan Instalasi & Menjalankan
+## 💻 System Requirements
+
+- **Operating System**: Linux (Arch, Ubuntu, Debian, Fedora, openSUSE, etc.) or Windows 10/11.
+- **Python**: Version 3.10 or newer.
+- **Android Platform Tools**: `adb` and `fastboot` installed and accessible via system PATH.
+
+---
+
+## 🚀 Installation & Quick Start
 
 ### Linux (Arch Linux / Ubuntu / Debian / Fedora)
 
 ```bash
-# 1. Clone repositori
+# 1. Clone the repository
 git clone https://github.com/iprjkt/Ximi-Ultimate-Tool.git
 cd Ximi-Ultimate-Tool
 
-# 2. Pasang dependensi
+# 2. Install dependencies
 pip install -r requirements.txt
-# Atau melalui package manager sistem:
-# Arch: sudo pacman -S python-pyqt6
+# Or via your system package manager:
+# Arch Linux: sudo pacman -S python-pyqt6
 # Ubuntu/Debian: sudo apt install python3-pyqt6
 
-# 3. Jalankan aplikasi
+# 3. Launch the application
 python3 main.py
 ```
 
 ### Windows
 
-1. Unduh atau clone repositori ini.
-2. Pastikan Python 3 dan Platform Tools (ADB/Fastboot) sudah terpasang dan terdaftar di PATH.
-3. Buka Command Prompt / PowerShell di folder proyek:
+1. Download or clone this repository.
+2. Ensure Python 3.10+ and Android Platform Tools (ADB/Fastboot) are installed and added to your system PATH.
+3. Open Command Prompt or PowerShell in the project directory:
    ```cmd
    pip install -r requirements.txt
    python main.py
@@ -107,45 +107,45 @@ python3 main.py
 
 ---
 
-## 📁 Struktur Berkas Proyek
+## 📁 Project Structure
 
 ```
 Ximi-Ultimate-Tool/
-├── main.py                     # Entry point aplikasi
-├── requirements.txt            # Dependensi Python (PyQt6)
-├── Roboto-Regular.ttf          # Font tipografi bawaan
-├── example.png                 # Referensi desain kartu About Phone HyperOS
+├── main.py                     # Application entry point with typography loader
+├── requirements.txt            # Python dependencies (PyQt6)
+├── Roboto-Regular.ttf          # MIUIX typography font
+├── example.png                 # Reference design for HyperOS About Phone card
 ├── app/
 │   ├── core/
-│   │   ├── adb_manager.py      # Manajemen perangkat ADB, debloater, logcat, dmesg
-│   │   ├── fastboot_manager.py # Flasher fastboot, parser skrip ROM, advance mode
-│   │   ├── explorer_manager.py # File manager root & non-root Android
-│   │   ├── fastfetch.py        # Mesin fastfetch logo HyperOS & spesifikasi
-│   │   └── settings_manager.py # Manajemen persistensi konfigurasi
+│   │   ├── adb_manager.py      # ADB device query, bloatware database, logcat/dmesg
+│   │   ├── fastboot_manager.py # Fastboot flasher, script parser, advance mode
+│   │   ├── explorer_manager.py # Dual-panel file manager (PC local & Android root)
+│   │   ├── fastfetch.py        # Custom fastfetch engine with HyperOS ASCII logo
+│   │   └── settings_manager.py # Settings configuration persistence
 │   └── ui/
-│       ├── floating_bar.py     # Floating Bottom Bar pill liquid glass
-│       ├── i18n.py             # Modul multi-bahasa (ID & EN)
-│       ├── styles.py           # MIUIX QSS stylesheets (Dark & Light)
-│       ├── main_window.py      # Window utama aplikasi
+│       ├── floating_bar.py     # Liquid glass floating bottom pill bar
+│       ├── i18n.py             # Internationalization module (EN & ID)
+│       ├── styles.py           # Modern MIUIX QSS stylesheets (Dark & Light)
+│       ├── main_window.py      # Master window and device connection listener
 │       ├── components/
-│       │   └── hyperos_card.py # Kartu About Phone identik example.png
+│       │   └── hyperos_card.py # HyperOS About Phone card matching example.png
 │       └── views/
-│           ├── adb_view.py       # Tampilan Debloater & Logs
-│           ├── fastboot_view.py  # Tampilan Fastboot Flasher
-│           ├── terminal_view.py  # Tampilan Terminal Shell & Fastfetch
-│           ├── explorer_view.py  # Tampilan Root Explorer
-│           └── settings_view.py  # Tampilan Pengaturan & Info Perangkat
+│           ├── adb_view.py       # Auto & Manual Debloater, Logcat, Dmesg
+│           ├── fastboot_view.py  # Fastboot Partition & ROM Flasher
+│           ├── terminal_view.py  # Interactive Shell & Fastfetch
+│           ├── explorer_view.py  # MT Manager style Dual-Panel Explorer
+│           └── settings_view.py  # Settings, Specs Card & Community Links
 ```
 
 ---
 
-## 🌐 Komunitas & Pengembang
+## 🌐 Community & Developer
 
-- **Pengembang**: [iprjkt](https://github.com/iprjkt)
-- **Repositori GitHub**: [https://github.com/iprjkt/Ximi-Ultimate-Tool](https://github.com/iprjkt)
-- **Saluran Telegram**: [@anotherside551](https://t.me/anotherside551)
+- **Developer**: [iprjkt](https://github.com/iprjkt)
+- **GitHub Repository**: [https://github.com/iprjkt/Ximi-Ultimate-Tool](https://github.com/iprjkt)
+- **Telegram Channel**: [@anotherside551](https://t.me/anotherside551)
 
 ---
 
 ## ⚠️ Disclaimer
-*Ximi Ultimate Tool disediakan untuk tujuan perbaikan, kustomisasi, dan pemeliharaan perangkat. Pengembang tidak bertanggung jawab atas kerusakan perangkat akibat kesalahan pemilihan berkas partisi atau penguncian bootloader pada ROM yang tidak sesuai.*
+*Ximi Ultimate Tool is provided for device maintenance, recovery, and customization purposes. The developer is not responsible for device soft-bricks or hard-bricks resulting from flashing incompatible firmware, improper partition selection, or flashing cross-region ROMs with bootloader locking.*
