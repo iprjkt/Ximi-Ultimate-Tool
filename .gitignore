@@ -37,3 +37,9 @@ wheels/
 preview_*.png
 2026*.png
 *.log
+
+# Node & Tauri Build Artifacts
+node_modules/
+src-tauri/target/
+target/
+src-tauri/gen/

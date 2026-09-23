@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ximi Ultimate Tool</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+  <!-- Main App Shell -->
+  <div class="app-container">
+    
+    <!-- Top Navigation / Header Bar -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#brand-grad)"/>
+            <path d="M7 12L10 15L17 8" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="brand-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#3B82F6"/>
+                <stop offset="1" stop-color="#8B5CF6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Ximi Ultimate Tool</span>
+          <span class="brand-subtitle">Xiaomi HyperOS & MIUI Toolkit</span>
+        </div>
+      </div>
+
+      <!-- Device Connection Quick Status -->
+      <div class="header-device-status">
+        <div class="device-pill" id="device-pill">
+          <span class="status-dot disconnected" id="device-dot"></span>
+          <span class="device-name" id="header-device-name" data-i18n="no_device">No Device Connected</span>
+          <button class="btn-icon-tiny" id="btn-refresh-devices" title="Refresh Devices">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Views Container -->
+    <main class="views-viewport" id="views-viewport">
+      
+      <!-- ============================================== -->
+      <!-- VIEW 1: ADB & DEBLOATER                        -->
+      <!-- ============================================== -->
+      <section class="view active" id="view-adb">
+        <div class="view-header">
+          <div>
+            <h2 class="view-title" data-i18n="nav_adb">ADB & Debloater</h2>
+            <p class="view-desc" data-i18n="adb_desc">Manage installed packages, debloat Xiaomi telemetry and apps, reboot modes.</p>
+          </div>
+          <div class="view-actions">
+            <select class="select-miui" id="adb-device-select">
+              <option value="" data-i18n="select_device">Select Device...</option>
+            </select>
+            <button class="btn btn-secondary" id="btn-reboot-menu">
+              <span data-i18n="reboot">Reboot</span> ▾
+            </button>
+            <div class="dropdown-menu hidden" id="reboot-dropdown">
+              <div class="dropdown-item" data-action="reboot-system" data-i18n="reboot_system">System</div>
+              <div class="dropdown-item" data-action="reboot-recovery" data-i18n="reboot_recovery">Recovery</div>
+              <div class="dropdown-item" data-action="reboot-bootloader" data-i18n="reboot_bootloader">Fastboot / Bootloader</div>
+              <div class="dropdown-item" data-action="reboot-edl" data-i18n="reboot_edl">EDL (Emergency Download)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view-body-grid">
+          <!-- Left Column: Debloater -->
+          <div class="card card-glass debloat-card">
+            <div class="card-header">
+              <div class="tab-filters">
+                <button class="filter-chip active" data-filter="recommended" data-i18n="filter_recommended">Curated Bloatware</button>
+                <button class="filter-chip" data-filter="all" data-i18n="filter_all">All Packages</button>
+                <button class="filter-chip" data-filter="3rd" data-i18n="filter_3rd">3rd Party</button>
+                <button class="filter-chip" data-filter="system" data-i18n="filter_system">System</button>
+                <button class="filter-chip" data-filter="disabled" data-i18n="filter_disabled">Disabled</button>
+              </div>
+              <div class="search-box">
+                <input type="text" id="debloat-search" placeholder="Search package or app..." data-i18n-ph="search_placeholder">
+              </div>
+            </div>
+
+            <!-- Package List Table -->
+            <div class="table-container">
+              <table class="package-table" id="package-table">
+                <thead>
+                  <tr>
+                    <th width="40"><input type="checkbox" id="check-all-packages"></th>
+                    <th data-i18n="col_name">App / Package</th>
+                    <th width="120" data-i18n="col_category">Category</th>
+                    <th width="90" data-i18n="col_risk">Risk</th>
+                    <th width="120" data-i18n="col_actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="package-list-tbody">
+                  <tr>
+                    <td colspan="5" class="table-empty" data-i18n="connect_device_prompt">Connect a device with USB Debugging enabled</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Bottom Multi-Action Bar -->
+            <div class="debloat-footer">
+              <div class="selected-count" id="selected-count">0 items selected</div>
+              <div class="footer-actions">
+                <button class="btn btn-danger" id="btn-uninstall-selected" disabled data-i18n="uninstall_selected">Uninstall Selected</button>
+                <button class="btn btn-warning" id="btn-disable-selected" disabled data-i18n="disable_selected">Disable Selected</button>
+                <button class="btn btn-success" id="btn-enable-selected" disabled data-i18n="enable_selected">Enable Selected</button>
+                <button class="btn btn-secondary" id="btn-restore-package" data-i18n="restore_pkg">Restore Package</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Quick Utilities -->
+          <div class="card card-glass quick-tools-card">
+            <h3 class="card-title" data-i18n="quick_tools">Device Utilities</h3>
+            
+            <div class="quick-tools-grid">
+              <button class="tool-btn" id="btn-take-screenshot">
+                <div class="tool-icon">📸</div>
+                <div class="tool-label" data-i18n="take_screenshot">Take Screenshot</div>
+              </button>
+              <button class="tool-btn" id="btn-screen-mirror">
+                <div class="tool-icon">🪞</div>
+                <div class="tool-label" data-i18n="screen_mirror">Screen Mirror (scrcpy)</div>
+              </button>
+              <button class="tool-btn" id="btn-install-apk">
+                <div class="tool-icon">📦</div>
+                <div class="tool-label" data-i18n="install_apk">Install APK</div>
+              </button>
+              <button class="tool-btn" id="btn-dump-logcat">
+                <div class="tool-icon">📜</div>
+                <div class="tool-label" data-i18n="live_logcat">Live Logcat</div>
+              </button>
+            </div>
+
+            <!-- APK Drag & Drop Area -->
+            <div class="apk-dropzone" id="apk-dropzone">
+              <div class="drop-icon">📥</div>
+              <div class="drop-text" data-i18n="drag_apk">Drag & Drop APK here to install</div>
+            </div>
+
+            <!-- Quick Specs Snapshot -->
+            <div class="quick-specs-box">
+              <h4 data-i18n="device_info_title">Device Info</h4>
+              <div class="spec-row"><span class="spec-k" data-i18n="spec_model">Model:</span><span class="spec-v" id="qs-model">-</span></div>
+              <div class="spec-row"><span class="spec-k" data-i18n="spec_codename">Codename:</span><span class="spec-v" id="qs-codename">-</span></div>
+              <div class="spec-row"><span class="spec-k" data-i18n="spec_hyperos">HyperOS:</span><span class="spec-v" id="qs-hyperos">-</span></div>
+              <div class="spec-row"><span class="spec-k" data-i18n="spec_android">Android:</span><span class="spec-v" id="qs-android">-</span></div>
+              <div class="spec-row"><span class="spec-k" data-i18n="spec_battery">Battery:</span><span class="spec-v" id="qs-battery">-</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: FASTBOOT FLASHER                       -->
+      <!-- ============================================== -->
+      <section class="view" id="view-fastboot">
+        <div class="view-header">
+          <div>
+            <h2 class="view-title" data-i18n="nav_fastboot">Fastboot Flasher</h2>
+            <p class="view-desc" data-i18n="fastboot_desc">Flash single partition images or full Xiaomi Fastboot ROM (Mi Flash alternative).</p>
+          </div>
+          <div class="view-actions">
+            <select class="select-miui" id="fastboot-device-select">
+              <option value="" data-i18n="no_fastboot_dev">No Fastboot Device</option>
+            </select>
+            <button class="btn btn-secondary" id="btn-refresh-fastboot" data-i18n="refresh">Refresh</button>
+            <button class="btn btn-secondary" id="btn-fastboot-reboot" data-i18n="reboot_system">Reboot System</button>
+          </div>
+        </div>
+
+        <div class="fastboot-grid">
+          <!-- Left: Flashing Modes & Config -->
+          <div class="card card-glass">
+            <div class="tab-filters">
+              <button class="filter-chip active" id="tab-flash-single" data-i18n="single_partition">Single Partition</button>
+              <button class="filter-chip" id="tab-flash-rom" data-i18n="full_rom">Full Fastboot ROM</button>
+            </div>
+
+            <!-- Single Partition Form -->
+            <div class="flash-form" id="form-single-partition">
+              <div class="form-group">
+                <label data-i18n="target_partition">Target Partition:</label>
+                <div class="partition-chips" id="partition-chips">
+                  <span class="p-chip active" data-p="boot">boot</span>
+                  <span class="p-chip" data-p="init_boot">init_boot</span>
+                  <span class="p-chip" data-p="recovery">recovery</span>
+                  <span class="p-chip" data-p="vbmeta">vbmeta</span>
+                  <span class="p-chip" data-p="dtbo">dtbo</span>
+                  <span class="p-chip" data-p="vendor_boot">vendor_boot</span>
+                  <span class="p-chip" data-p="super">super</span>
+                  <span class="p-chip custom" id="chip-custom-partition">+ custom</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label data-i18n="image_file">Image File (.img):</label>
+                <div class="file-picker-row">
+                  <input type="text" class="input-miui" id="single-image-path" placeholder="/path/to/image.img" readonly>
+                  <button class="btn btn-secondary" id="btn-browse-image" data-i18n="browse">Browse...</button>
+                </div>
+              </div>
+
+              <div class="form-options">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="check-vbmeta-flags">
+                  <span data-i18n="disable_verity">Disable Verity & Verification (--disable-verity --disable-verification)</span>
+                </label>
+              </div>
+
+              <div class="form-actions-row">
+                <button class="btn btn-primary" id="btn-flash-single" data-i18n="flash_partition_btn">⚡ Flash Partition</button>
+                <button class="btn btn-secondary" id="btn-boot-image" data-i18n="boot_image_btn">Temporarily Boot Image</button>
+              </div>
+            </div>
+
+            <!-- Full ROM Form -->
+            <div class="flash-form hidden" id="form-full-rom">
+              <div class="form-group">
+                <label data-i18n="rom_folder">Fastboot ROM Directory:</label>
+                <div class="file-picker-row">
+                  <input type="text" class="input-miui" id="rom-folder-path" placeholder="/path/to/extracted_fastboot_rom" readonly>
+                  <button class="btn btn-secondary" id="btn-browse-rom" data-i18n="browse">Browse...</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label data-i18n="flash_script">Flash Script:</label>
+                <select class="select-miui" id="rom-script-select">
+                  <option value="flash_all.sh">flash_all (Clean All - Recommended)</option>
+                  <option value="flash_all_except_storage.sh">flash_all_except_storage (Save User Data)</option>
+                  <option value="flash_all_lock.sh">flash_all_lock (Clean All & Lock Bootloader - CAUTION)</option>
+                </select>
+              </div>
+
+              <!-- Advance Mode: Partition exclusion table -->
+              <div class="advance-partition-section">
+                <div class="advance-header">
+                  <span class="advance-title" data-i18n="advance_partitions">Advanced Partition Control</span>
+                  <span class="advance-tip" data-i18n="advance_tip">Uncheck dangerous partitions (preloader, nvram) to avoid hard brick</span>
+                </div>
+                <div class="partition-table-container">
+                  <table class="package-table" id="rom-partitions-table">
+                    <thead>
+                      <tr>
+                        <th width="35"><input type="checkbox" id="rom-check-all" checked></th>
+                        <th>Partition</th>
+                        <th>Image File</th>
+                        <th width="90">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rom-partitions-tbody">
+                      <tr><td colspan="4" class="table-empty" data-i18n="select_rom_prompt">Select ROM folder to load partitions</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="form-actions-row">
+                <button class="btn btn-danger" id="btn-flash-rom" data-i18n="flash_rom_btn">🔥 Flash Full ROM</button>
+                <button class="btn btn-secondary" id="btn-abort-flash" disabled data-i18n="abort">Abort</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Real-time Terminal Log Output -->
+          <div class="card card-glass console-card">
+            <div class="console-header">
+              <span class="console-title">Live Fastboot Console</span>
+              <button class="btn-icon-tiny" id="btn-clear-fastboot-log" title="Clear Log">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-fill" id="fastboot-progress-bar" style="width: 0%;"></div>
+            </div>
+            <pre class="terminal-log" id="fastboot-terminal-log">[IDLE] Waiting for fastboot flash commands...</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: MT MANAGER DUAL-PANEL FILE EXPLORER    -->
+      <!-- ============================================== -->
+      <section class="view" id="view-explorer">
+        <div class="view-header">
+          <div>
+            <h2 class="view-title" data-i18n="nav_explorer">MT Dual-Panel File Explorer</h2>
+            <p class="view-desc" data-i18n="explorer_desc">Bidirectional PC & Android file manager with Root Mode and 1-Click transfer.</p>
+          </div>
+          <div class="view-actions">
+            <!-- Root Switch -->
+            <label class="root-switch-label">
+              <input type="checkbox" id="explorer-root-toggle" checked>
+              <span class="switch-slider"></span>
+              <span class="switch-text" data-i18n="root_mode">Root (su)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- MT Manager Dual Panels Container -->
+        <div class="mt-manager-container">
+          
+          <!-- LEFT PANEL: PC FILE SYSTEM -->
+          <div class="mt-panel" id="panel-pc">
+            <div class="panel-header">
+              <div class="panel-badge pc-badge">💻 Local PC</div>
+              <div class="panel-tools">
+                <button class="btn-panel-action" id="btn-pc-home" title="Home Directory">🏠</button>
+                <button class="btn-panel-action" id="btn-pc-up" title="Parent Directory">⬆️</button>
+                <button class="btn-panel-action" id="btn-pc-newfolder" title="New Folder">📁+</button>
+                <button class="btn-panel-action" id="btn-pc-refresh" title="Refresh">🔄</button>
+              </div>
+            </div>
+            <div class="panel-address-bar">
+              <input type="text" class="input-address" id="pc-current-path" value="/home">
+              <button class="btn-address-go" id="btn-pc-go">Go</button>
+            </div>
+            <div class="panel-file-list" id="pc-file-list">
+              <!-- PC File Items rendered by JS -->
+            </div>
+            <div class="panel-status" id="pc-status">0 items</div>
+          </div>
+
+          <!-- MIDDLE COLUMN: 1-CLICK TRANSFER BUTTONS -->
+          <div class="mt-transfer-center">
+            <button class="btn-transfer" id="btn-push-to-android" title="Push selected PC items to Android">
+              <span class="transfer-arrow">➜</span>
+              <span class="transfer-text" data-i18n="push_to_android">PC ➔ Android</span>
+            </button>
+            <button class="btn-transfer" id="btn-pull-to-pc" title="Pull selected Android items to PC">
+              <span class="transfer-arrow">⬅</span>
+              <span class="transfer-text" data-i18n="pull_to_pc">Android ➔ PC</span>
+            </button>
+          </div>
+
+          <!-- RIGHT PANEL: ANDROID FILE SYSTEM -->
+          <div class="mt-panel" id="panel-android">
+            <div class="panel-header">
+              <div class="panel-badge android-badge">📱 Android</div>
+              <div class="panel-tools">
+                <button class="btn-panel-action" id="btn-android-sdcard" title="Internal Storage (/sdcard)">💾</button>
+                <button class="btn-panel-action" id="btn-android-root" title="Root (/)" >🌐</button>
+                <button class="btn-panel-action" id="btn-android-up" title="Parent Directory">⬆️</button>
+                <button class="btn-panel-action" id="btn-android-newfolder" title="New Folder">📁+</button>
+                <button class="btn-panel-action" id="btn-android-refresh" title="Refresh">🔄</button>
+              </div>
+            </div>
+            <div class="panel-address-bar">
+              <input type="text" class="input-address" id="android-current-path" value="/sdcard">
+              <button class="btn-address-go" id="btn-android-go">Go</button>
+            </div>
+            <div class="panel-file-list" id="android-file-list">
+              <!-- Android File Items rendered by JS -->
+            </div>
+            <div class="panel-status" id="android-status">0 items</div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: TERMINAL SHELL & FASTFETCH             -->
+      <!-- ============================================== -->
+      <section class="view" id="view-terminal">
+        <div class="view-header">
+          <div>
+            <h2 class="view-title" data-i18n="nav_terminal">Terminal Shell</h2>
+            <p class="view-desc" data-i18n="terminal_desc">Interactive ADB shell with HyperOS fastfetch and root permissions.</p>
+          </div>
+          <div class="view-actions">
+            <label class="root-switch-label">
+              <input type="checkbox" id="terminal-root-toggle" checked>
+              <span class="switch-slider"></span>
+              <span class="switch-text" data-i18n="root_shell">Root Shell (su)</span>
+            </label>
+            <button class="btn btn-primary" id="btn-run-fastfetch" data-i18n="run_fastfetch">✨ HyperOS Fastfetch</button>
+            <button class="btn btn-secondary" id="btn-clear-terminal" data-i18n="clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="terminal-container card card-glass">
+          <div class="terminal-quick-bar">
+            <button class="chip-cmd" data-cmd="fastfetch">fastfetch</button>
+            <button class="chip-cmd" data-cmd="getprop | grep product">getprop product</button>
+            <button class="chip-cmd" data-cmd="df -h">df -h</button>
+            <button class="chip-cmd" data-cmd="free -m">free -m</button>
+            <button class="chip-cmd" data-cmd="uname -a">uname -a</button>
+            <button class="chip-cmd" data-cmd="ps -A">ps -A</button>
+            <button class="chip-cmd" data-cmd="dmesg | tail -n 30">dmesg</button>
+          </div>
+          <div class="terminal-screen" id="terminal-screen">
+            <div class="terminal-welcome">
+              Welcome to Ximi Ultimate Tool Terminal Shell<br>
+              Type any shell command or click 'HyperOS Fastfetch' to display device details.
+            </div>
+          </div>
+          <div class="terminal-input-row">
+            <span class="terminal-prompt" id="terminal-prompt">root@hyperos:~#</span>
+            <input type="text" class="terminal-input" id="terminal-input" placeholder="Type command here..." autofocus>
+            <button class="btn btn-secondary" id="btn-send-cmd">Send</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 5: SETTINGS & ABOUT PHONE                 -->
+      <!-- ============================================== -->
+      <section class="view" id="view-settings">
+        <div class="view-header">
+          <div>
+            <h2 class="view-title" data-i18n="nav_settings">Settings & About Phone</h2>
+            <p class="view-desc" data-i18n="settings_desc">Inspect device hardware specifications, change application theme and language.</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          
+          <!-- LEFT COLUMN: ABOUT PHONE CARD (Matching example.png) -->
+          <div class="about-phone-card">
+            <div class="about-card-banner">
+              <div class="hyperos-logo-circle">
+                <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                  <circle cx="22" cy="22" r="21" fill="url(#ho-grad)" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+                  <path d="M14 22C14 17.5817 17.5817 14 22 14C26.4183 14 30 17.5817 30 22C30 26.4183 26.4183 30 22 30C17.5817 30 14 26.4183 14 22Z" stroke="#ffffff" stroke-width="2.5"/>
+                  <circle cx="22" cy="22" r="3.5" fill="#ffffff"/>
+                  <defs>
+                    <linearGradient id="ho-grad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#2563EB"/>
+                      <stop offset="0.5" stop-color="#7C3AED"/>
+                      <stop offset="1" stop-color="#06B6D4"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div class="banner-info">
+                <div class="banner-title" id="ap-brand-title">Xiaomi HyperOS</div>
+                <div class="banner-version" id="ap-version-incremental">OS4.0.0.3.XPSCNXM</div>
+              </div>
+            </div>
+
+            <!-- Device Model Badge -->
+            <div class="device-model-section">
+              <div class="device-model-label" data-i18n="device_model">Device Model</div>
+              <div class="device-model-value" id="ap-market-name">Redmi Note 14 4G/5G</div>
+              <div class="device-codename-badge" id="ap-codename">tanzanite</div>
+            </div>
+
+            <!-- Hardware Specifications Grid (example.png replica) -->
+            <div class="specs-card-grid">
+              <div class="spec-tile">
+                <div class="tile-icon">🧠</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_cpu">Processor</div>
+                  <div class="tile-val" id="ap-cpu">Octa-core Max 2.8GHz</div>
+                </div>
+              </div>
+
+              <div class="spec-tile">
+                <div class="tile-icon">⚡</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_ram">RAM</div>
+                  <div class="tile-val" id="ap-ram">8.0GB + 4.0GB</div>
+                </div>
+              </div>
+
+              <div class="spec-tile">
+                <div class="tile-icon">🗄️</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_storage">Storage</div>
+                  <div class="tile-val" id="ap-storage">72.5GB / 256GB</div>
+                </div>
+              </div>
+
+              <div class="spec-tile">
+                <div class="tile-icon">🔋</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_battery">Battery Capacity</div>
+                  <div class="tile-val" id="ap-battery">5000mAh (typ)</div>
+                </div>
+              </div>
+
+              <div class="spec-tile">
+                <div class="tile-icon">🤖</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_android">Android Version</div>
+                  <div class="tile-val" id="ap-android">14</div>
+                </div>
+              </div>
+
+              <div class="spec-tile">
+                <div class="tile-icon">🛡️</div>
+                <div class="tile-info">
+                  <div class="tile-label" data-i18n="tile_security">Security Patch</div>
+                  <div class="tile-val" id="ap-security">2026-09-01</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: PREFERENCES & COMMUNITY -->
+          <div class="settings-preferences-col">
+            
+            <!-- Preferences Card -->
+            <div class="card card-glass">
+              <h3 class="card-title" data-i18n="app_preferences">App Preferences</h3>
+              
+              <div class="setting-item-row">
+                <div class="setting-info">
+                  <div class="setting-name" data-i18n="theme_mode">Theme Mode</div>
+                  <div class="setting-sub" data-i18n="theme_desc">Switch between Dark and Light HyperOS styles</div>
+                </div>
+                <div class="theme-switcher">
+                  <button class="theme-btn active" id="btn-theme-dark" title="Dark Theme">🌙 Dark</button>
+                  <button class="theme-btn" id="btn-theme-light" title="Light Theme">☀️ Light</button>
+                </div>
+              </div>
+
+              <div class="setting-item-row">
+                <div class="setting-info">
+                  <div class="setting-name" data-i18n="language_label">Language</div>
+                  <div class="setting-sub" data-i18n="lang_desc">Pilih Bahasa / Select Language</div>
+                </div>
+                <select class="select-miui" id="lang-select">
+                  <option value="en">English (US)</option>
+                  <option value="id">Bahasa Indonesia</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- About Ximi Ultimate Tool & Community Links -->
+            <div class="card card-glass community-card">
+              <h3 class="card-title" data-i18n="community_title">Ximi Ultimate Tool v2.0 (Rust Edition)</h3>
+              <p class="community-desc" data-i18n="community_desc">
+                High-performance Xiaomi HyperOS & MIUI ADB/Fastboot toolkit rewritten in Rust & Tauri 2.0 with liquid glass design.
+              </p>
+
+              <div class="community-buttons">
+                <button class="btn-social github" id="btn-link-github">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                  <span>GitHub: @iprjkt</span>
+                </button>
+
+                <button class="btn-social telegram" id="btn-link-telegram">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.916z"/>
+                  </svg>
+                  <span>Telegram: @anotherside551</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============================================== -->
+    <!-- FLOATING LIQUID GLASS BOTTOM NAVIGATION DOCK   -->
+    <!-- ============================================== -->
+    <nav class="floating-dock-wrapper">
+      <div class="floating-dock">
+        <!-- Animated Active Indicator Pill -->
+        <div class="dock-indicator" id="dock-indicator"></div>
+
+        <button class="dock-tab active" data-target="view-adb">
+          <span class="dock-icon">📱</span>
+          <span class="dock-label" data-i18n="nav_adb">ADB</span>
+        </button>
+
+        <button class="dock-tab" data-target="view-fastboot">
+          <span class="dock-icon">⚡</span>
+          <span class="dock-label" data-i18n="nav_fastboot">Fastboot</span>
+        </button>
+
+        <button class="dock-tab" data-target="view-explorer">
+          <span class="dock-icon">🗂️</span>
+          <span class="dock-label" data-i18n="nav_explorer">Explorer</span>
+        </button>
+
+        <button class="dock-tab" data-target="view-terminal">
+          <span class="dock-icon">💻</span>
+          <span class="dock-label" data-i18n="nav_terminal">Terminal</span>
+        </button>
+
+        <button class="dock-tab" data-target="view-settings">
+          <span class="dock-icon">⚙️</span>
+          <span class="dock-label" data-i18n="nav_settings">Settings</span>
+        </button>
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- Custom Context Menu for MT Manager -->
+  <div class="context-menu hidden" id="file-context-menu">
+    <div class="context-item" id="ctx-open" data-i18n="ctx_open">Open</div>
+    <div class="context-item" id="ctx-edit" data-i18n="ctx_edit">Edit as Text</div>
+    <div class="context-item" id="ctx-extract" data-i18n="ctx_extract">Extract ZIP</div>
+    <div class="context-item" id="ctx-rename" data-i18n="ctx_rename">Rename</div>
+    <div class="context-separator"></div>
+    <div class="context-item danger" id="ctx-delete" data-i18n="ctx_delete">Delete</div>
+  </div>
+
+  <!-- Modal for Text Editor -->
+  <div class="modal-overlay hidden" id="editor-modal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span class="modal-title" id="editor-modal-title">Edit File</span>
+        <button class="btn-icon-tiny" id="btn-close-editor">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea class="editor-textarea" id="editor-content"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-editor" data-i18n="cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-editor" data-i18n="save">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Restore Package -->
+  <div class="modal-overlay hidden" id="restore-modal">
+    <div class="modal-window modal-sm">
+      <div class="modal-header">
+        <span class="modal-title" data-i18n="restore_pkg_title">Restore Uninstalled Package</span>
+        <button class="btn-icon-tiny" id="btn-close-restore">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc" data-i18n="restore_pkg_desc">Enter the package name of the previously uninstalled system app:</p>
+        <input type="text" class="input-miui" id="restore-package-input" placeholder="e.g. com.miui.analytics">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-restore" data-i18n="cancel">Cancel</button>
+        <button class="btn btn-success" id="btn-confirm-restore" data-i18n="restore">Restore</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
