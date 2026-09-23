@@ -88,8 +88,14 @@ TRANSLATIONS = {
         "log_filter_tag": "Tag Filter:",
         "log_search_placeholder": "Search log contents...",
         
-        # Explorer View
-        "explorer_title": "Android Root Explorer",
+        # Explorer View (MT Manager Dual Panel)
+        "explorer_title": "Dual-Panel Explorer (MT Manager Style)",
+        "panel_pc": "PC Storage",
+        "panel_android": "Android Device Storage",
+        "btn_transfer_to_android": "Copy to Android ➜",
+        "btn_transfer_to_pc": "⬅ Copy to PC",
+        "confirm_transfer_to_android": "Copy '{item}' from PC to Android destination folder:\n{dst}?",
+        "confirm_transfer_to_pc": "Copy '{item}' from Android to PC destination folder:\n{dst}?",
         "explorer_root_mode": "Root Mode (su)",
         "explorer_non_root_mode": "Standard Mode (Limited)",
         "btn_parent_dir": "Up",
@@ -254,8 +260,14 @@ TRANSLATIONS = {
         "log_filter_tag": "Filter Tag:",
         "log_search_placeholder": "Cari isi log...",
         
-        # Tampilan Explorer
-        "explorer_title": "Android Root Explorer",
+        # Tampilan Explorer (Dua Panel Gaya MT Manager)
+        "explorer_title": "File Explorer Dua Panel (Gaya MT Manager)",
+        "panel_pc": "Penyimpanan PC",
+        "panel_android": "Penyimpanan Android",
+        "btn_transfer_to_android": "Salin ke Android ➜",
+        "btn_transfer_to_pc": "⬅ Salin ke PC",
+        "confirm_transfer_to_android": "Salin '{item}' dari PC ke folder tujuan Android:\n{dst}?",
+        "confirm_transfer_to_pc": "Salin '{item}' dari Android ke folder tujuan PC:\n{dst}?",
         "explorer_root_mode": "Mode Root (su)",
         "explorer_non_root_mode": "Mode Standar (Terbatas)",
         "btn_parent_dir": "Naik",
