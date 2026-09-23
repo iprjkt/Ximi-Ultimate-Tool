@@ -136,7 +136,7 @@ Ximi-Ultimate-Tool/
 
 - **Developer**: [iprjkt](https://github.com/iprjkt)
 - **GitHub Repository**: [https://github.com/iprjkt/Ximi-Ultimate-Tool](https://github.com/iprjkt)
-- **Telegram Channel**: [@anotherside551](https://t.me/anotherside551)
+- **Telegram Channel**: [@iprjkt](https://t.me/iprjkt)
 
 ---
 
