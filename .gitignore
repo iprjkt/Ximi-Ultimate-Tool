@@ -33,6 +33,7 @@ wheels/
 *.swp
 *.swo
 
-# Preview dumps
+# Preview dumps & screenshots
 preview_*.png
+2026*.png
 *.log

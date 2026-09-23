@@ -41,8 +41,10 @@ class BackgroundContainer(QWidget):
     """Container widget supporting custom image background with dark/light tint overlay."""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
         self.bg_pixmap: Optional[QPixmap] = None
-        self.overlay_color = QColor(15, 15, 24, 210)  # default dark tint
+        self.solid_bg = QColor("#0E0E18")
+        self.overlay_color = QColor(14, 14, 24, 210)
 
     def set_background_image(self, img_path: str):
         if img_path and os.path.exists(img_path):
@@ -51,20 +53,21 @@ class BackgroundContainer(QWidget):
             self.bg_pixmap = None
         self.update()
 
-    def set_overlay_color(self, color: QColor):
-        self.overlay_color = color
+    def set_theme_colors(self, solid_bg: QColor, overlay_color: QColor):
+        self.solid_bg = solid_bg
+        self.overlay_color = overlay_color
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        # Always fill the entire canvas with 100% opaque solid color first!
+        painter.fillRect(self.rect(), self.solid_bg)
+
         if self.bg_pixmap and not self.bg_pixmap.isNull():
-            # Scale background to fill while maintaining aspect ratio
             scaled = self.bg_pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
-            # Center crop
             x = (self.width() - scaled.width()) // 2
             y = (self.height() - scaled.height()) // 2
             painter.drawPixmap(x, y, scaled)
-            # Draw semi-transparent overlay so UI remains clear
             painter.fillRect(self.rect(), self.overlay_color)
         super().paintEvent(event)
 
@@ -317,11 +320,11 @@ class MainWindow(QMainWindow):
         if app:
             app.setStyleSheet(qss)
         
-        # Adjust container overlay color
+        # Solid backgrounds for Wayland / Hyprland
         if theme_mode == "dark":
-            self.central_bg.set_overlay_color(QColor(15, 15, 24, 215))
+            self.central_bg.set_theme_colors(QColor("#0E0E18"), QColor(14, 14, 24, 210))
         else:
-            self.central_bg.set_overlay_color(QColor(245, 246, 250, 215))
+            self.central_bg.set_theme_colors(QColor("#F1F3F7"), QColor(241, 243, 247, 210))
 
     def on_background_changed(self, img_path: str):
         self.central_bg.set_background_image(img_path)

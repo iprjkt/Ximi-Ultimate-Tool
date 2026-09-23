@@ -6,6 +6,7 @@ Features:
 - Theme configuration (Dark Mode, Light Mode)
 - Custom wallpaper background configuration
 - Links to GitHub (https://github.com/iprjkt) and Telegram (https://t.me/anotherside551)
+Theme-aware: adapts cleanly to both Dark Mode and Light Mode.
 """
 
 from typing import Dict, Optional
@@ -48,17 +49,17 @@ class SettingsView(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Scroll area for clean scrolling on smaller screens
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
-        main_layout.addWidget(scroll)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setStyleSheet("background: transparent;")
+        main_layout.addWidget(self.scroll)
 
         content = QWidget()
-        scroll.setWidget(content)
+        self.scroll.setWidget(content)
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(24, 20, 24, 100)  # padding bottom for floating bar
-        content_layout.setSpacing(22)
+        content_layout.setContentsMargins(24, 14, 24, 80)
+        content_layout.setSpacing(16)
 
         # 1. HyperOS About Phone Card Component (matches example.png)
         self.card_about = HyperOSAboutCard()
@@ -76,30 +77,24 @@ class SettingsView(QWidget):
         # 2. Preferences & Appearance Card
         self.card_pref = QFrame()
         self.card_pref.setObjectName("SettingsCardPref")
-        self.card_pref.setStyleSheet("""
-            #SettingsCardPref {
-                background-color: rgba(30, 27, 60, 0.7);
-                border: 1px solid rgba(139, 92, 246, 0.25);
-                border-radius: 20px;
-                padding: 16px;
-            }
-        """)
         pref_layout = QVBoxLayout(self.card_pref)
-        pref_layout.setSpacing(16)
+        pref_layout.setContentsMargins(18, 16, 18, 16)
+        pref_layout.setSpacing(14)
 
         self.lbl_pref_title = QLabel(f"🎨 {tr('section_preferences')}")
-        self.lbl_pref_title.setStyleSheet("font-size: 17px; font-weight: 700; color: #FFFFFF;")
+        self.lbl_pref_title.setObjectName("SettingsPrefTitle")
         pref_layout.addWidget(self.lbl_pref_title)
 
         # Language row
         lang_row = QHBoxLayout()
         self.lbl_lang = QLabel(tr("pref_language"))
-        self.lbl_lang.setStyleSheet("font-size: 14px; font-weight: 600;")
+        self.lbl_lang.setObjectName("SettingsPrefLabel")
         self.cmb_lang = QComboBox()
+        self.cmb_lang.setMinimumWidth(190)
+        self.cmb_lang.setFixedHeight(36)
         self.cmb_lang.addItem("Bahasa Indonesia", "id")
         self.cmb_lang.addItem("English", "en")
         
-        # Set active language
         current_lang = self.settings.get("language", "id")
         lang_idx = self.cmb_lang.findData(current_lang)
         if lang_idx >= 0:
@@ -114,8 +109,10 @@ class SettingsView(QWidget):
         # Theme row
         theme_row = QHBoxLayout()
         self.lbl_theme = QLabel(tr("pref_theme"))
-        self.lbl_theme.setStyleSheet("font-size: 14px; font-weight: 600;")
+        self.lbl_theme.setObjectName("SettingsPrefLabel")
         self.cmb_theme = QComboBox()
+        self.cmb_theme.setMinimumWidth(190)
+        self.cmb_theme.setFixedHeight(36)
         self.cmb_theme.addItem(tr("theme_dark"), "dark")
         self.cmb_theme.addItem(tr("theme_light"), "light")
         
@@ -133,7 +130,7 @@ class SettingsView(QWidget):
         # Custom Background row
         bg_row = QHBoxLayout()
         self.lbl_bg = QLabel(tr("pref_custom_bg"))
-        self.lbl_bg.setStyleSheet("font-size: 14px; font-weight: 600;")
+        self.lbl_bg.setObjectName("SettingsPrefLabel")
         self.btn_select_bg = QPushButton(tr("btn_select_bg"))
         self.btn_select_bg.clicked.connect(self.choose_custom_background)
         self.btn_reset_bg = QPushButton(tr("btn_reset_bg"))
@@ -150,24 +147,17 @@ class SettingsView(QWidget):
         # 3. Community & Developer Links Card
         self.card_about_app = QFrame()
         self.card_about_app.setObjectName("SettingsCardAbout")
-        self.card_about_app.setStyleSheet("""
-            #SettingsCardAbout {
-                background-color: rgba(30, 27, 60, 0.7);
-                border: 1px solid rgba(139, 92, 246, 0.25);
-                border-radius: 20px;
-                padding: 16px;
-            }
-        """)
         about_layout = QVBoxLayout(self.card_about_app)
+        about_layout.setContentsMargins(18, 16, 18, 16)
         about_layout.setSpacing(14)
 
         self.lbl_about_title = QLabel(f"🌐 {tr('section_about')}")
-        self.lbl_about_title.setStyleSheet("font-size: 17px; font-weight: 700; color: #FFFFFF;")
+        self.lbl_about_title.setObjectName("SettingsAboutTitle")
         about_layout.addWidget(self.lbl_about_title)
 
         self.lbl_desc = QLabel(tr("app_description"))
         self.lbl_desc.setWordWrap(True)
-        self.lbl_desc.setStyleSheet("color: #9CA3AF; font-size: 13px;")
+        self.lbl_desc.setStyleSheet("font-size: 13px;")
         about_layout.addWidget(self.lbl_desc)
 
         # Links Buttons
@@ -213,7 +203,7 @@ class SettingsView(QWidget):
         # Version & Credits
         self.lbl_credits = QLabel(tr("developer_label"))
         self.lbl_credits.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_credits.setStyleSheet("color: #6B7280; font-size: 12px; margin-top: 6px;")
+        self.lbl_credits.setStyleSheet("font-size: 12px; margin-top: 6px;")
         about_layout.addWidget(self.lbl_credits)
 
         content_layout.addWidget(self.card_about_app)
