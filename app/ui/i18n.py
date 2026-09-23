@@ -1,0 +1,373 @@
+"""
+Internationalization (i18n) module for Ximi Ultimate Tool.
+Supports Bahasa Indonesia and English with dynamic switching.
+"""
+
+TRANSLATIONS = {
+    "en": {
+        # Navigation
+        "nav_adb": "ADB",
+        "nav_fastboot": "Fastboot",
+        "nav_terminal": "Terminal",
+        "nav_explorer": "Explorer",
+        "nav_settings": "Settings",
+        
+        # General Status
+        "status_no_device": "No device connected",
+        "status_adb_connected": "ADB Device Connected: {device}",
+        "status_fastboot_connected": "Fastboot Device Connected: {device}",
+        "status_unauthorized": "Device Unauthorized - check screen prompt!",
+        "status_ready": "Ready",
+        "refresh": "Refresh",
+        "reboot": "Reboot",
+        "reboot_system": "Reboot System",
+        "reboot_recovery": "Reboot Recovery",
+        "reboot_bootloader": "Reboot Fastboot",
+        "reboot_edl": "Reboot EDL (9008)",
+        "browse": "Browse...",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "save": "Save",
+        "apply": "Apply",
+        "clear": "Clear",
+        "search": "Search...",
+        "filter": "Filter",
+        "all": "All",
+        "warning": "Warning",
+        "error": "Error",
+        "success": "Success",
+        "info": "Information",
+        
+        # ADB / Debloater View
+        "tab_debloater_auto": "Auto Debloater",
+        "tab_debloater_manual": "Manual Debloater",
+        "tab_logcat": "Logcat Viewer",
+        "tab_dmesg": "Kernel dmesg",
+        "debloater_desc": "Safely remove pre-installed bloatware, telemetry, and tracking apps from HyperOS / MIUI.",
+        "btn_scan_bloatware": "Scan Installed Bloatware",
+        "btn_uninstall_selected": "Uninstall Selected Apps",
+        "btn_restore_selected": "Restore / Reinstall Apps",
+        "btn_disable_selected": "Disable Selected",
+        "btn_enable_selected": "Enable Selected",
+        "col_select": "Select",
+        "col_app_name": "App Name",
+        "col_package": "Package Name",
+        "col_category": "Category",
+        "col_risk": "Risk Level",
+        "col_status": "Installed Status",
+        "risk_safe": "Safe to Remove",
+        "risk_caution": "Caution",
+        "risk_optional": "Optional",
+        "status_installed": "Installed",
+        "status_uninstalled": "Uninstalled",
+        "status_disabled": "Disabled",
+        "cat_analytics": "Xiaomi Analytics & Telemetry",
+        "cat_ads": "Ads & Commercial Services",
+        "cat_system": "MIUI System Apps",
+        "cat_google": "Google Bloatware",
+        "cat_facebook": "Facebook Services",
+        "cat_games": "Games & Preloaded",
+        "manual_pkg_input": "Enter Package Name (e.g. com.miui.analytics):",
+        "btn_uninstall_pkg": "Uninstall",
+        "btn_restore_pkg": "Restore",
+        "btn_disable_pkg": "Disable",
+        "btn_enable_pkg": "Enable",
+        "installed_pkgs": "Installed Packages List",
+        "btn_fetch_pkgs": "Fetch All Packages",
+        "filter_all": "All Packages",
+        "filter_third_party": "User Installed (3rd-party)",
+        "filter_system": "System Apps",
+        "filter_disabled": "Disabled Apps",
+        
+        # Logcat & Dmesg
+        "log_start": "Start Capture",
+        "log_stop": "Stop Capture",
+        "log_clear": "Clear Log",
+        "log_export": "Export to File",
+        "log_filter_level": "Log Level:",
+        "log_filter_tag": "Tag Filter:",
+        "log_search_placeholder": "Search log contents...",
+        
+        # Explorer View
+        "explorer_title": "Android Root Explorer",
+        "explorer_root_mode": "Root Mode (su)",
+        "explorer_non_root_mode": "Standard Mode (Limited)",
+        "btn_parent_dir": "Up",
+        "btn_home_dir": "Home",
+        "btn_new_folder": "New Folder",
+        "btn_new_file": "New File",
+        "btn_push_file": "Push to Device",
+        "btn_pull_file": "Pull to PC",
+        "btn_extract_zip": "Extract ZIP",
+        "btn_edit_file": "View / Edit",
+        "btn_delete": "Delete",
+        "btn_rename": "Rename",
+        "col_file_name": "Name",
+        "col_file_size": "Size",
+        "col_file_perms": "Permissions",
+        "col_file_date": "Modified",
+        "dialog_new_folder_title": "Create Folder",
+        "dialog_new_folder_msg": "Folder name:",
+        "dialog_new_file_title": "Create File",
+        "dialog_new_file_msg": "File name:",
+        "dialog_rename_title": "Rename Item",
+        "dialog_rename_msg": "New name:",
+        "confirm_delete_msg": "Are you sure you want to delete {item}?",
+        
+        # Terminal View
+        "terminal_title": "Android Shell Terminal",
+        "terminal_su_mode": "Root Shell (`su`)",
+        "terminal_sh_mode": "Regular Shell (`sh`)",
+        "btn_run_fastfetch": "Run fastfetch",
+        "btn_clear_terminal": "Clear Screen",
+        "terminal_placeholder": "Type command here and press Enter (try 'fastfetch' or 'help')...",
+        
+        # Fastboot View
+        "fastboot_title": "Fastboot Partition & ROM Flasher",
+        "tab_single_partition": "Single Partition Flasher",
+        "tab_full_rom": "Fastboot ROM Flasher (Mi Flash Alternative)",
+        "tab_advance_mode": "Advanced Partition Selector",
+        "select_image_file": "Select Image (.img / .bin):",
+        "target_partition": "Target Partition:",
+        "btn_flash_partition": "Flash Selected Partition",
+        "vbmeta_disable_flags": "Disable verity & verification (for vbmeta/vbmeta_system)",
+        "rom_directory": "Fastboot ROM Folder:",
+        "rom_script": "Flashing Script:",
+        "btn_parse_script": "Parse Script & Partitions",
+        "flash_mode": "Flashing Mode:",
+        "mode_clean_all": "Clean Flash (Format Data, Keep Bootloader UNLOCKED)",
+        "mode_clean_keep_data": "Clean Flash without Format Data (Dirty Flash / Save Data)",
+        "mode_clean_lock": "Clean Flash + LOCK BOOTLOADER (Warning: Softbrick risk if cross-region!)",
+        "advance_mode_note": "Advance Mode: Check/uncheck partitions to flash. Unchecked partitions are automatically skipped.",
+        "btn_start_flash": "START FLASHING",
+        "btn_stop_flash": "Abort Flashing",
+        "realtime_log": "Real-time Flash Output Log",
+        "flash_warning_title": "Confirm Flash Operation",
+        "flash_warning_msg": "You are about to flash ROM in mode: {mode}.\nDo you want to proceed?",
+        "flash_lock_warning_msg": "CRITICAL WARNING:\nYou selected 'Lock Bootloader'.\nIf flashing a custom ROM or cross-region ROM, your device WILL BE HARD BRICKED!\n\nAre you ABSOLUTELY sure?",
+        
+        # Settings View
+        "settings_title": "Settings & About Device",
+        "card_about_phone": "About Phone",
+        "device_name": "Device name",
+        "storage": "Storage",
+        "os_version": "OS version",
+        "cpu_processor": "cpu",
+        "ram_memory": "ram",
+        "battery_capacity": "battery",
+        "section_preferences": "Preferences & Appearance",
+        "pref_language": "Language / Bahasa:",
+        "pref_theme": "Theme Mode:",
+        "theme_dark": "Dark Mode (HyperOS Midnight)",
+        "theme_light": "Light Mode (MIUIX Clean)",
+        "pref_custom_bg": "Custom Background Wallpaper:",
+        "btn_select_bg": "Choose Wallpaper Image...",
+        "btn_reset_bg": "Reset to Default Wallpaper",
+        "section_about": "About & Community",
+        "app_description": "Ximi Ultimate Tool is an all-in-one Android ADB & Fastboot utility engineered for Xiaomi, Redmi, and POCO devices powered by HyperOS / MIUI.",
+        "link_github": "GitHub Repository: https://github.com/iprjkt",
+        "link_telegram": "Telegram Channel: https://t.me/anotherside551",
+        "developer_label": "Created by iprjkt | Community support @anotherside551",
+        "version_label": "Version: 1.0.0 (Ultimate Edition)",
+    },
+    "id": {
+        # Navigasi
+        "nav_adb": "ADB",
+        "nav_fastboot": "Fastboot",
+        "nav_terminal": "Terminal",
+        "nav_explorer": "Explorer",
+        "nav_settings": "Pengaturan",
+        
+        # Status Umum
+        "status_no_device": "Tidak ada perangkat terhubung",
+        "status_adb_connected": "Perangkat ADB Terhubung: {device}",
+        "status_fastboot_connected": "Perangkat Fastboot Terhubung: {device}",
+        "status_unauthorized": "Perangkat Belum Diizinkan (Cek prompt layar HP)!",
+        "status_ready": "Siap",
+        "refresh": "Segarkan",
+        "reboot": "Reboot",
+        "reboot_system": "Reboot Sistem",
+        "reboot_recovery": "Reboot Recovery",
+        "reboot_bootloader": "Reboot Fastboot",
+        "reboot_edl": "Reboot EDL (9008)",
+        "browse": "Jelajahi...",
+        "cancel": "Batal",
+        "confirm": "Konfirmasi",
+        "save": "Simpan",
+        "apply": "Terapkan",
+        "clear": "Bersihkan",
+        "search": "Cari...",
+        "filter": "Filter",
+        "all": "Semua",
+        "warning": "Peringatan",
+        "error": "Kesalahan",
+        "success": "Berhasil",
+        "info": "Informasi",
+        
+        # Tampilan ADB / Debloater
+        "tab_debloater_auto": "Debloater Otomatis",
+        "tab_debloater_manual": "Debloater Manual",
+        "tab_logcat": "Penampil Logcat",
+        "tab_dmesg": "Kernel dmesg",
+        "debloater_desc": "Hapus aplikasi bawaan (bloatware), telemetri, dan pelacak bawaan HyperOS / MIUI dengan aman.",
+        "btn_scan_bloatware": "Pindai Bloatware Terpasang",
+        "btn_uninstall_selected": "Hapus (Uninstall) Aplikasi Terpilih",
+        "btn_restore_selected": "Pulihkan / Pasang Kembali",
+        "btn_disable_selected": "Nonaktifkan (Disable) Terpilih",
+        "btn_enable_selected": "Aktifkan (Enable) Terpilih",
+        "col_select": "Pilih",
+        "col_app_name": "Nama Aplikasi",
+        "col_package": "Nama Paket (Package)",
+        "col_category": "Kategori",
+        "col_risk": "Tingkat Risiko",
+        "col_status": "Status Terpasang",
+        "risk_safe": "Aman Dihapus",
+        "risk_caution": "Perhatian",
+        "risk_optional": "Opsional",
+        "status_installed": "Terpasang",
+        "status_uninstalled": "Dihapus",
+        "status_disabled": "Dinonaktifkan",
+        "cat_analytics": "Analisis & Telemetri Xiaomi",
+        "cat_ads": "Layanan Iklan & Komersial",
+        "cat_system": "Aplikasi Sistem MIUI",
+        "cat_google": "Bloatware Google",
+        "cat_facebook": "Layanan Facebook",
+        "cat_games": "Game & Aplikasi Preloaded",
+        "manual_pkg_input": "Ketik Nama Paket (contoh: com.miui.analytics):",
+        "btn_uninstall_pkg": "Uninstall",
+        "btn_restore_pkg": "Pulihkan",
+        "btn_disable_pkg": "Nonaktifkan",
+        "btn_enable_pkg": "Aktifkan",
+        "installed_pkgs": "Daftar Paket yang Terpasang",
+        "btn_fetch_pkgs": "Ambil Semua Paket",
+        "filter_all": "Semua Paket",
+        "filter_third_party": "Aplikasi Pengguna (Pihak Ke-3)",
+        "filter_system": "Aplikasi Sistem",
+        "filter_disabled": "Aplikasi Dinonaktifkan",
+        
+        # Logcat & Dmesg
+        "log_start": "Mulai Rekam",
+        "log_stop": "Hentikan Rekam",
+        "log_clear": "Bersihkan Log",
+        "log_export": "Ekspor ke File",
+        "log_filter_level": "Tingkat Log:",
+        "log_filter_tag": "Filter Tag:",
+        "log_search_placeholder": "Cari isi log...",
+        
+        # Tampilan Explorer
+        "explorer_title": "Android Root Explorer",
+        "explorer_root_mode": "Mode Root (su)",
+        "explorer_non_root_mode": "Mode Standar (Terbatas)",
+        "btn_parent_dir": "Naik",
+        "btn_home_dir": "Beranda",
+        "btn_new_folder": "Folder Baru",
+        "btn_new_file": "Berkas Baru",
+        "btn_push_file": "Kirim ke HP (Push)",
+        "btn_pull_file": "Tarik ke PC (Pull)",
+        "btn_extract_zip": "Ekstrak ZIP",
+        "btn_edit_file": "Buka / Edit",
+        "btn_delete": "Hapus",
+        "btn_rename": "Ganti Nama",
+        "col_file_name": "Nama Berkas",
+        "col_file_size": "Ukuran",
+        "col_file_perms": "Izin (Perms)",
+        "col_file_date": "Dimodifikasi",
+        "dialog_new_folder_title": "Buat Folder Baru",
+        "dialog_new_folder_msg": "Nama folder:",
+        "dialog_new_file_title": "Buat Berkas Baru",
+        "dialog_new_file_msg": "Nama berkas:",
+        "dialog_rename_title": "Ganti Nama",
+        "dialog_rename_msg": "Nama baru:",
+        "confirm_delete_msg": "Apakah Anda yakin ingin menghapus {item}?",
+        
+        # Tampilan Terminal
+        "terminal_title": "Terminal Shell Android",
+        "terminal_su_mode": "Shell Root (`su`)",
+        "terminal_sh_mode": "Shell Biasa (`sh`)",
+        "btn_run_fastfetch": "Jalankan fastfetch",
+        "btn_clear_terminal": "Bersihkan Layar",
+        "terminal_placeholder": "Ketik perintah di sini lalu tekan Enter (coba 'fastfetch' atau 'help')...",
+        
+        # Tampilan Fastboot
+        "fastboot_title": "Fastboot Flasher & Manajemen Partisi",
+        "tab_single_partition": "Flasher Partisi Tunggal",
+        "tab_full_rom": "Flasher ROM Fastboot (Pengganti Mi Flash)",
+        "tab_advance_mode": "Pilihan Partisi Lanjutan (Advance Mode)",
+        "select_image_file": "Pilih File Image (.img / .bin):",
+        "target_partition": "Partisi Target:",
+        "btn_flash_partition": "Flash Partisi Terpilih",
+        "vbmeta_disable_flags": "Matikan verity & verification (untuk vbmeta/vbmeta_system)",
+        "rom_directory": "Folder ROM Fastboot:",
+        "rom_script": "Skrip Flasher:",
+        "btn_parse_script": "Pindai Skrip & Partisi",
+        "flash_mode": "Mode Flashing:",
+        "mode_clean_all": "Clean Flash (Format Data, Bootloader TETAP TERBUKA/UNLOCKED)",
+        "mode_clean_keep_data": "Clean Flash Tanpa Format Data (Dirty Flash / Data Aman)",
+        "mode_clean_lock": "Clean Flash + KUNCI BOOTLOADER (Peringatan: Risiko Brick jika beda region!)",
+        "advance_mode_note": "Advance Mode: Centang/hilangkan centang partisi yang ingin di-flash. Partisi yang tidak dicentang otomatis dilewati (di-comment).",
+        "btn_start_flash": "MULAI FLASHING",
+        "btn_stop_flash": "Batalkan Flashing",
+        "realtime_log": "Log Output Flashing Real-Time",
+        "flash_warning_title": "Konfirmasi Flashing",
+        "flash_warning_msg": "Anda akan mem-flash ROM dalam mode: {mode}.\nApakah Anda ingin melanjutkan?",
+        "flash_lock_warning_msg": "PERINGATAN KRUSIAL:\nAnda memilih opsi 'Kunci Bootloader'.\nJika Anda mem-flash ROM modifikasi atau ROM beda region, perangkat Anda AKAN MENGALAMI HARD BRICK!\n\nApakah Anda BENAR-BENAR yakin?",
+        
+        # Tampilan Settings
+        "settings_title": "Pengaturan & Info Perangkat",
+        "card_about_phone": "Tentang Ponsel",
+        "device_name": "Nama perangkat",
+        "storage": "Penyimpanan",
+        "os_version": "Versi OS",
+        "cpu_processor": "cpu",
+        "ram_memory": "ram",
+        "battery_capacity": "baterai",
+        "section_preferences": "Preferensi & Tampilan",
+        "pref_language": "Bahasa / Language:",
+        "pref_theme": "Tema Tampilan:",
+        "theme_dark": "Mode Gelap (HyperOS Midnight)",
+        "theme_light": "Mode Terang (MIUIX Clean)",
+        "pref_custom_bg": "Kustom Gambar Latar Belakang:",
+        "btn_select_bg": "Pilih Gambar Wallpaper...",
+        "btn_reset_bg": "Reset ke Wallpaper Bawaan",
+        "section_about": "Tentang & Komunitas",
+        "app_description": "Ximi Ultimate Tool adalah tool utility ADB & Fastboot all-in-one yang didesain khusus untuk pengguna Xiaomi, Redmi, dan POCO berbasis HyperOS / MIUI.",
+        "link_github": "Repositori GitHub: https://github.com/iprjkt",
+        "link_telegram": "Saluran Telegram: https://t.me/anotherside551",
+        "developer_label": "Dibuat oleh iprjkt | Dukungan Komunitas @anotherside551",
+        "version_label": "Versi: 1.0.0 (Ultimate Edition)",
+    }
+}
+
+class I18nManager:
+    """Singleton manager for application translation strings."""
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(I18nManager, cls).__new__(cls)
+            cls._instance._lang = "id"  # Default Indonesian as requested
+        return cls._instance
+    
+    @property
+    def current_language(self) -> str:
+        return self._lang
+    
+    def set_language(self, lang_code: str):
+        if lang_code in TRANSLATIONS:
+            self._lang = lang_code
+            
+    def tr(self, key: str, **kwargs) -> str:
+        text = TRANSLATIONS.get(self._lang, {}).get(key)
+        if text is None:
+            # Fallback to English
+            text = TRANSLATIONS.get("en", {}).get(key, key)
+        if kwargs:
+            try:
+                return text.format(**kwargs)
+            except Exception:
+                return text
+        return text
+
+# Convenience function
+def tr(key: str, **kwargs) -> str:
+    return I18nManager().tr(key, **kwargs)
