@@ -62,7 +62,7 @@
 
 ### 5. 🎨 MIUIX / HyperOS Liquid Glass Interface
 - **iOS 26 / HyperOS Floating Dock**: Frosted glass bottom bar with smooth spring transitions (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
-- **Settings & "About Phone" Card**: Replicating the authentic Xiaomi HyperOS *About Phone* card layout (based on `example.png`), displaying incremental version (e.g. `OS4.0.0.3.XPSCNXM`), CPU, RAM, and storage meter.
+- **Settings & "About Phone" Card**: Replicating the authentic Xiaomi HyperOS *About Phone* card layout, displaying incremental version, CPU, RAM, and storage meter.
 - **Bilingual Support**: Dynamic live switching between **English** and **Bahasa Indonesia** without restarting.
 - **Dark & Light Themes**: Solid opaque base colors compatible with Hyprland and Wayland compositors.
 
