@@ -145,9 +145,10 @@
             </div>
 
             <!-- APK Drag & Drop Area -->
-            <div class="apk-dropzone" id="apk-dropzone">
-              <div class="drop-icon">📥</div>
-              <div class="drop-text" data-i18n="drag_apk">Drag & Drop APK here to install</div>
+            <div class="apk-dropzone" id="apk-dropzone" title="Drag & drop APK or click to browse">
+              <div class="drop-icon" id="drop-icon">📥</div>
+              <div class="drop-text" id="drop-text" data-i18n="drag_apk">Drag & Drop APK here to install</div>
+              <div class="drop-subtext">or click to browse from PC</div>
             </div>
 
             <!-- Quick Specs Snapshot -->
@@ -651,6 +652,50 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btn-cancel-restore" data-i18n="cancel">Cancel</button>
         <button class="btn btn-success" id="btn-confirm-restore" data-i18n="restore">Restore</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Live Logcat -->
+  <div class="modal-overlay hidden" id="logcat-modal">
+    <div class="modal-window logcat-modal-window">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-title">📜 Live Logcat</span>
+          <span class="badge-live live" id="logcat-status-badge">● LIVE</span>
+          <span class="logcat-device-tag" id="logcat-device-tag">-</span>
+        </div>
+        <button class="btn-icon-tiny" id="btn-close-logcat">✕</button>
+      </div>
+      <div class="logcat-toolbar">
+        <button class="btn btn-primary btn-sm" id="btn-toggle-logcat">⏹ Stop</button>
+        <button class="btn btn-secondary btn-sm" id="btn-clear-logcat">🗑 Clear</button>
+        <button class="btn btn-secondary btn-sm" id="btn-export-logcat">💾 Export</button>
+        <div class="logcat-filter-group">
+          <label class="logcat-label">Level:</label>
+          <select class="select-miui select-sm" id="logcat-level-select">
+            <option value="V">Verbose (V)</option>
+            <option value="D">Debug (D)</option>
+            <option value="I">Info (I)</option>
+            <option value="W">Warning (W)</option>
+            <option value="E">Error (E)</option>
+            <option value="F">Fatal (F)</option>
+          </select>
+        </div>
+        <div class="logcat-search-group">
+          <input type="text" class="input-miui input-sm" id="logcat-search-filter" placeholder="Filter tag / keyword...">
+        </div>
+        <label class="checkbox-label checkbox-sm">
+          <input type="checkbox" id="logcat-autoscroll" checked>
+          <span>Auto-scroll</span>
+        </label>
+      </div>
+      <div class="modal-body logcat-body">
+        <div class="logcat-viewer" id="logcat-viewer"></div>
+      </div>
+      <div class="modal-footer logcat-footer">
+        <span class="logcat-counter" id="logcat-counter">0 lines</span>
+        <button class="btn btn-secondary btn-sm" id="btn-close-logcat-footer">Close</button>
       </div>
     </div>
   </div>

@@ -1,4 +1,4 @@
-use crate::utils::run_adb_cmd;
+use crate::utils::{detect_adb, run_adb_cmd};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -695,15 +695,18 @@ pub fn reboot_device(serial: Option<String>, mode: String) -> Result<String, Str
 pub fn install_apk(serial: Option<String>, apk_path: String) -> Result<String, String> {
     let mut args = Vec::new();
     if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
+        if !s.trim().is_empty() {
+            args.extend_from_slice(&["-s", s.trim()]);
+        }
     }
     args.extend_from_slice(&["install", "-r", &apk_path]);
 
     let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && stdout.contains("Success") {
+    if code == 0 && (stdout.to_lowercase().contains("success") || stderr.to_lowercase().contains("success")) {
         Ok("APK installed successfully!".to_string())
     } else {
-        Err(if stdout.trim().is_empty() { stderr } else { stdout })
+        let msg = if !stdout.trim().is_empty() { stdout } else { stderr };
+        Err(msg.trim().to_string())
     }
 }
 
@@ -787,3 +790,108 @@ fn chrono_like_timestamp() -> String {
         .unwrap_or_default();
     format!("{}", duration.as_secs())
 }
+
+static LOGCAT_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+
+#[tauri::command]
+pub fn start_logcat_stream(
+    app: tauri::AppHandle,
+    serial: Option<String>,
+    filter: Option<String>,
+    level: Option<String>,
+) -> Result<(), String> {
+    use std::io::{BufRead, BufReader};
+    use std::process::{Command as StdCommand, Stdio};
+    use tauri::Emitter;
+
+    // Terminate existing child if any
+    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
+        if let Some(mut child) = lock.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    let adb = detect_adb();
+    let mut cmd = StdCommand::new(&adb);
+    if let Some(ref s) = serial {
+        if !s.trim().is_empty() {
+            cmd.args(&["-s", s.trim()]);
+        }
+    }
+    cmd.arg("logcat");
+    cmd.args(&["-v", "time"]);
+
+    if let Some(ref lvl) = level {
+        let l = lvl.trim();
+        if !l.is_empty() && l != "V" && l != "All" {
+            cmd.arg(format!("*:{}", l));
+        }
+    }
+
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn adb logcat: {}", e))?;
+    let stdout = child.stdout.take().ok_or_else(|| "Failed to capture logcat stdout".to_string())?;
+
+    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
+        *lock = Some(child);
+    }
+
+    let filter_kw = filter
+        .map(|f| f.trim().to_lowercase())
+        .filter(|f| !f.is_empty());
+
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            match line {
+                Ok(l) => {
+                    let matches = if let Some(ref kw) = filter_kw {
+                        l.to_lowercase().contains(kw)
+                    } else {
+                        true
+                    };
+                    if matches {
+                        if app.emit("logcat-line", l).is_err() {
+                            break;
+                        }
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_logcat_stream() -> Result<(), String> {
+    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
+        if let Some(mut child) = lock.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_logcat(serial: Option<String>) -> Result<String, String> {
+    let mut args = Vec::new();
+    if let Some(ref s) = serial {
+        if !s.trim().is_empty() {
+            args.extend_from_slice(&["-s", s.trim()]);
+        }
+    }
+    args.extend_from_slice(&["logcat", "-c"]);
+    let (code, _, err) = run_adb_cmd(&args)?;
+    if code == 0 {
+        Ok("Logcat buffer cleared".to_string())
+    } else {
+        Err(err)
+    }
+}
+

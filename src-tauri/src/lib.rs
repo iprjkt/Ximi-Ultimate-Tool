@@ -32,6 +32,12 @@ pub fn run() {
             adb::take_screenshot,
             adb::screen_mirror,
             adb::execute_shell,
+            adb::start_logcat_stream,
+            adb::stop_logcat_stream,
+            adb::clear_logcat,
+            // File & Folder Picker
+            utils::pick_file,
+            utils::pick_folder,
             // Fastboot Commands
             fastboot::get_fastboot_devices,
             fastboot::flash_partition,

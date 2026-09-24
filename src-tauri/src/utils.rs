@@ -101,3 +101,93 @@ pub fn format_bytes(bytes: u64) -> String {
         format!("{:.1} {}", size, UNITS[unit_idx])
     }
 }
+
+#[tauri::command]
+pub fn pick_file(
+    title: Option<String>,
+    filter_name: Option<String>,
+    filter_pattern: Option<String>,
+) -> Result<Option<String>, String> {
+    if which::which("zenity").is_ok() {
+        let mut cmd = Command::new("zenity");
+        cmd.arg("--file-selection");
+        if let Some(ref t) = title {
+            cmd.arg(format!("--title={}", t));
+        }
+        if let (Some(ref name), Some(ref pat)) = (filter_name.as_ref(), filter_pattern.as_ref()) {
+            cmd.arg(format!("--file-filter={} | {}", name, pat));
+            cmd.arg("--file-filter=All files | *");
+        }
+        if let Ok(out) = cmd.output() {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(Some(path));
+                }
+            }
+            return Ok(None);
+        }
+    }
+
+    if which::which("kdialog").is_ok() {
+        let mut cmd = Command::new("kdialog");
+        cmd.arg("--getopenfilename");
+        cmd.arg(".");
+        if let Some(ref pat) = filter_pattern {
+            cmd.arg(pat);
+        }
+        if let Some(ref t) = title {
+            cmd.arg(format!("--title={}", t));
+        }
+        if let Ok(out) = cmd.output() {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(Some(path));
+                }
+            }
+            return Ok(None);
+        }
+    }
+
+    Err("No compatible file chooser found (please install zenity or kdialog)".to_string())
+}
+
+#[tauri::command]
+pub fn pick_folder(title: Option<String>) -> Result<Option<String>, String> {
+    if which::which("zenity").is_ok() {
+        let mut cmd = Command::new("zenity");
+        cmd.arg("--file-selection").arg("--directory");
+        if let Some(ref t) = title {
+            cmd.arg(format!("--title={}", t));
+        }
+        if let Ok(out) = cmd.output() {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(Some(path));
+                }
+            }
+            return Ok(None);
+        }
+    }
+
+    if which::which("kdialog").is_ok() {
+        let mut cmd = Command::new("kdialog");
+        cmd.arg("--getexistingdirectory");
+        if let Some(ref t) = title {
+            cmd.arg(format!("--title={}", t));
+        }
+        if let Ok(out) = cmd.output() {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(Some(path));
+                }
+            }
+            return Ok(None);
+        }
+    }
+
+    Err("No compatible folder chooser found (please install zenity or kdialog)".to_string())
+}

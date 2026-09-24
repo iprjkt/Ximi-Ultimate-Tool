@@ -674,25 +674,63 @@ input[type="checkbox"]:checked {
 .apk-dropzone {
   border: 2px dashed var(--border-color);
   border-radius: 14px;
-  padding: 20px;
+  padding: 18px 14px;
   text-align: center;
   background: var(--table-stripe);
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
 }
 
-.apk-dropzone:hover {
+.apk-dropzone:hover,
+.apk-dropzone.drag-active {
   border-color: var(--primary);
   background: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+}
+
+.apk-dropzone.installing {
+  border-color: var(--warning);
+  background: rgba(245, 158, 11, 0.12);
+  pointer-events: none;
+}
+
+.apk-dropzone.success {
+  border-color: var(--success);
+  background: rgba(16, 185, 129, 0.12);
 }
 
 .drop-icon {
   font-size: 26px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  transition: transform 0.2s;
+}
+
+.apk-dropzone.drag-active .drop-icon {
+  transform: scale(1.2);
 }
 
 .drop-text {
   font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.drop-subtext {
+  font-size: 11px;
   color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  display: inline-block;
+  animation: spin 1s linear infinite;
 }
 
 .quick-specs-box {
@@ -1681,3 +1719,150 @@ body.theme-light ::-webkit-scrollbar-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+/* Live Logcat Modal Window */
+.modal-window.logcat-modal-window {
+  width: 980px;
+  max-width: 95vw;
+  height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-live {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+}
+
+.badge-live.live {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+  animation: pulseLive 2s infinite ease-in-out;
+}
+
+.badge-live.stopped {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94A3B8;
+}
+
+@keyframes pulseLive {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.logcat-device-tag {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--table-stripe);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.logcat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  height: 32px;
+}
+
+.select-sm {
+  padding: 4px 28px 4px 10px;
+  font-size: 12px;
+  height: 32px;
+}
+
+.input-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  height: 32px;
+}
+
+.logcat-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logcat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.logcat-search-group {
+  flex: 1;
+  min-width: 180px;
+}
+
+.checkbox-sm {
+  font-size: 12px;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.modal-body.logcat-body {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #0B0E14;
+}
+
+.logcat-viewer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #CBD5E1;
+  user-select: text;
+}
+
+.logcat-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 1px 0;
+}
+
+.logcat-line.log-v { color: #94A3B8; }
+.logcat-line.log-d { color: #10B981; }
+.logcat-line.log-i { color: #38BDF8; }
+.logcat-line.log-w { color: #FBBF24; font-weight: 500; }
+.logcat-line.log-e { color: #F87171; font-weight: 600; background: rgba(239, 68, 68, 0.08); padding-left: 4px; border-left: 2px solid #EF4444; }
+.logcat-line.log-f { color: #EF4444; font-weight: 700; background: rgba(239, 68, 68, 0.2); padding-left: 4px; border-left: 3px solid #DC2626; }
+
+.modal-footer.logcat-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.logcat-counter {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+

@@ -663,7 +663,7 @@ async function runTerminalCommand(cmd) {
 
   if (cmd === 'fastfetch') {
     try {
-      const out = await invoke('run_fastfetch', { serial: AppState.currentAdbDevice });
+      const out = await invoke('run_fastfetch', { serial: AppState.currentAdbDevice, rootMode });
       appendTerminal(out, true);
     } catch (e) {
       appendTerminal(`Error: ${e}`);
@@ -680,6 +680,367 @@ async function runTerminalCommand(cmd) {
     appendTerminal(out);
   } catch (e) {
     appendTerminal(`Error: ${e}`);
+  }
+}
+
+// ==========================================================
+// 9.5. APK SIDELOAD & LIVE LOGCAT CONTROLLERS
+// ==========================================================
+async function installApkFile(filePath) {
+  if (!filePath) return;
+  if (!AppState.currentAdbDevice) {
+    alert(I18N[currentLang].select_device || 'Please connect and select an ADB device first.');
+    return;
+  }
+  const fileName = filePath.split('/').pop().split('\\').pop();
+  const dropzone = document.getElementById('apk-dropzone');
+  const icon = document.getElementById('drop-icon');
+  const text = document.getElementById('drop-text');
+
+  if (dropzone) dropzone.classList.add('installing');
+  if (icon) {
+    icon.innerHTML = '🔄';
+    icon.classList.add('spin');
+  }
+  if (text) text.textContent = `Installing ${fileName}...`;
+
+  try {
+    const res = await invoke('install_apk', {
+      serial: AppState.currentAdbDevice,
+      apkPath: filePath
+    });
+    if (dropzone) {
+      dropzone.classList.remove('installing');
+      dropzone.classList.add('success');
+    }
+    if (icon) {
+      icon.innerHTML = '✅';
+      icon.classList.remove('spin');
+    }
+    if (text) text.textContent = `Installed: ${fileName}!`;
+    setTimeout(() => {
+      if (dropzone) dropzone.classList.remove('success');
+      if (icon) icon.innerHTML = '📥';
+      if (text) text.textContent = I18N[currentLang].drag_apk || 'Drag & Drop APK here to install';
+    }, 3500);
+    // Refresh package list
+    if (AppState.currentAdbDevice) {
+      loadPackages(AppState.currentAdbDevice, AppState.currentFilter);
+    }
+  } catch (err) {
+    if (dropzone) dropzone.classList.remove('installing');
+    if (icon) {
+      icon.innerHTML = '❌';
+      icon.classList.remove('spin');
+    }
+    if (text) text.textContent = `Install Failed: ${err}`;
+    setTimeout(() => {
+      if (icon) icon.innerHTML = '📥';
+      if (text) text.textContent = I18N[currentLang].drag_apk || 'Drag & Drop APK here to install';
+    }, 4500);
+  }
+}
+
+async function selectAndInstallApk() {
+  if (!AppState.currentAdbDevice) {
+    alert(I18N[currentLang].select_device || 'Please connect and select an ADB device first.');
+    return;
+  }
+  try {
+    const path = await invoke('pick_file', {
+      title: 'Select APK Package to Install',
+      filterName: 'Android Package (*.apk)',
+      filterPattern: '*.apk'
+    });
+    if (path) {
+      installApkFile(path);
+    }
+  } catch (e) {
+    console.error('File picker error:', e);
+  }
+}
+
+function setupApkDragDrop() {
+  const dropzone = document.getElementById('apk-dropzone');
+  if (!dropzone) return;
+
+  // Click on dropzone or Install APK button
+  dropzone.addEventListener('click', selectAndInstallApk);
+  const btnInstall = document.getElementById('btn-install-apk');
+  if (btnInstall) {
+    btnInstall.addEventListener('click', selectAndInstallApk);
+  }
+
+  // HTML5 Drag & Drop
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add('drag-active');
+  });
+
+  dropzone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('drag-active');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('drag-active');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const p = file.path || file.name;
+      if (p && p.toLowerCase().endsWith('.apk')) {
+        installApkFile(p);
+      }
+    }
+  });
+
+  // Tauri v2 Native Window Drag & Drop
+  if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
+    window.__TAURI__.event.listen('tauri://drag-enter', () => {
+      dropzone.classList.add('drag-active');
+    });
+
+    window.__TAURI__.event.listen('tauri://drag-leave', () => {
+      dropzone.classList.remove('drag-active');
+    });
+
+    window.__TAURI__.event.listen('tauri://drag-drop', (event) => {
+      dropzone.classList.remove('drag-active');
+      const paths = event.payload && event.payload.paths ? event.payload.paths : [];
+      if (paths.length > 0) {
+        const apkFile = paths.find(p => p.toLowerCase().endsWith('.apk')) || paths[0];
+        if (apkFile && apkFile.toLowerCase().endsWith('.apk')) {
+          installApkFile(apkFile);
+        } else {
+          alert('Please drop an .apk package file.');
+        }
+      }
+    });
+  }
+}
+
+const LogcatState = {
+  isStreaming: false,
+  lines: [],
+  maxLines: 2500,
+  filterText: '',
+  level: 'V',
+  autoScroll: true
+};
+
+function formatLogcatLine(line) {
+  let severityClass = 'log-v';
+  if (/\bE\/|\sE\s|ERROR|FATAL/i.test(line)) {
+    severityClass = 'log-e';
+  } else if (/\bW\/|\sW\s|WARN/i.test(line)) {
+    severityClass = 'log-w';
+  } else if (/\bI\/|\sI\s|INFO/i.test(line)) {
+    severityClass = 'log-i';
+  } else if (/\bD\/|\sD\s|DEBUG/i.test(line)) {
+    severityClass = 'log-d';
+  }
+  const div = document.createElement('div');
+  div.className = `logcat-line ${severityClass}`;
+  div.textContent = line;
+  return div;
+}
+
+function appendLogcatLine(line) {
+  LogcatState.lines.push(line);
+  if (LogcatState.lines.length > LogcatState.maxLines) {
+    LogcatState.lines.shift();
+  }
+
+  const search = LogcatState.filterText.toLowerCase();
+  if (search && !line.toLowerCase().includes(search)) {
+    return;
+  }
+
+  const viewer = document.getElementById('logcat-viewer');
+  if (!viewer) return;
+
+  const lineElem = formatLogcatLine(line);
+  viewer.appendChild(lineElem);
+
+  while (viewer.childElementCount > LogcatState.maxLines) {
+    viewer.removeChild(viewer.firstElementChild);
+  }
+
+  const counter = document.getElementById('logcat-counter');
+  if (counter) counter.textContent = `${viewer.childElementCount} lines`;
+
+  if (LogcatState.autoScroll) {
+    viewer.scrollTop = viewer.scrollHeight;
+  }
+}
+
+async function startLogcatStream() {
+  if (!AppState.currentAdbDevice) {
+    alert(I18N[currentLang].select_device || 'Please connect an ADB device first.');
+    return;
+  }
+
+  try {
+    const level = document.getElementById('logcat-level-select').value;
+    const filter = document.getElementById('logcat-search-filter').value.trim();
+
+    await invoke('start_logcat_stream', {
+      serial: AppState.currentAdbDevice,
+      filter: filter || null,
+      level: level || null
+    });
+
+    LogcatState.isStreaming = true;
+    updateLogcatControls();
+  } catch (err) {
+    alert(`Failed to start logcat: ${err}`);
+  }
+}
+
+async function stopLogcatStream() {
+  try {
+    await invoke('stop_logcat_stream');
+  } catch (e) {
+    console.error('Stop logcat error:', e);
+  }
+  LogcatState.isStreaming = false;
+  updateLogcatControls();
+}
+
+function updateLogcatControls() {
+  const toggleBtn = document.getElementById('btn-toggle-logcat');
+  const badge = document.getElementById('logcat-status-badge');
+  if (!toggleBtn || !badge) return;
+  if (LogcatState.isStreaming) {
+    toggleBtn.textContent = '⏹ Stop';
+    toggleBtn.className = 'btn btn-danger btn-sm';
+    badge.className = 'badge-live live';
+    badge.textContent = '● LIVE';
+  } else {
+    toggleBtn.textContent = '▶ Start';
+    toggleBtn.className = 'btn btn-primary btn-sm';
+    badge.className = 'badge-live stopped';
+    badge.textContent = '⏹ STOPPED';
+  }
+}
+
+function setupLogcatModal() {
+  const modal = document.getElementById('logcat-modal');
+  const btnDumpLogcat = document.getElementById('btn-dump-logcat');
+  const btnClose = document.getElementById('btn-close-logcat');
+  const btnCloseFooter = document.getElementById('btn-close-logcat-footer');
+  const toggleBtn = document.getElementById('btn-toggle-logcat');
+  const clearBtn = document.getElementById('btn-clear-logcat');
+  const exportBtn = document.getElementById('btn-export-logcat');
+  const filterInput = document.getElementById('logcat-search-filter');
+  const levelSelect = document.getElementById('logcat-level-select');
+  const autoscrollCheck = document.getElementById('logcat-autoscroll');
+
+  if (!btnDumpLogcat || !modal) return;
+
+  btnDumpLogcat.addEventListener('click', async () => {
+    if (!AppState.currentAdbDevice) {
+      alert(I18N[currentLang].select_device || 'Please select an ADB device first.');
+      return;
+    }
+    const tag = document.getElementById('logcat-device-tag');
+    if (tag) tag.textContent = AppState.currentAdbDevice;
+    modal.classList.remove('hidden');
+    startLogcatStream();
+  });
+
+  const closeModal = async () => {
+    modal.classList.add('hidden');
+    if (LogcatState.isStreaming) {
+      await stopLogcatStream();
+    }
+  };
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (btnCloseFooter) btnCloseFooter.addEventListener('click', closeModal);
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      if (LogcatState.isStreaming) {
+        stopLogcatStream();
+      } else {
+        startLogcatStream();
+      }
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', async () => {
+      const viewer = document.getElementById('logcat-viewer');
+      if (viewer) viewer.innerHTML = '';
+      LogcatState.lines = [];
+      const counter = document.getElementById('logcat-counter');
+      if (counter) counter.textContent = '0 lines';
+      try {
+        await invoke('clear_logcat', { serial: AppState.currentAdbDevice });
+      } catch (e) {
+        console.warn('Clear logcat buffer warning:', e);
+      }
+    });
+  }
+
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      if (LogcatState.lines.length === 0) {
+        alert('Log buffer is empty.');
+        return;
+      }
+      const blob = new Blob([LogcatState.lines.join('\n')], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `logcat_${AppState.currentAdbDevice || 'device'}_${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  if (filterInput) {
+    filterInput.addEventListener('input', (e) => {
+      LogcatState.filterText = e.target.value.trim();
+      const viewer = document.getElementById('logcat-viewer');
+      if (!viewer) return;
+      viewer.innerHTML = '';
+      const kw = LogcatState.filterText.toLowerCase();
+      for (const l of LogcatState.lines) {
+        if (!kw || l.toLowerCase().includes(kw)) {
+          viewer.appendChild(formatLogcatLine(l));
+        }
+      }
+      const counter = document.getElementById('logcat-counter');
+      if (counter) counter.textContent = `${viewer.childElementCount} lines`;
+      if (LogcatState.autoScroll) viewer.scrollTop = viewer.scrollHeight;
+    });
+  }
+
+  if (levelSelect) {
+    levelSelect.addEventListener('change', () => {
+      if (LogcatState.isStreaming) {
+        startLogcatStream();
+      }
+    });
+  }
+
+  if (autoscrollCheck) {
+    autoscrollCheck.addEventListener('change', (e) => {
+      LogcatState.autoScroll = e.target.checked;
+    });
+  }
+
+  if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
+    window.__TAURI__.event.listen('logcat-line', (event) => {
+      if (LogcatState.isStreaming && event.payload) {
+        appendLogcatLine(event.payload);
+      }
+    });
   }
 }
 
@@ -825,6 +1186,10 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(`scrcpy error: ${e}`);
     }
   });
+
+  // Setup Sideload Drag & Drop and Live Logcat Modal
+  setupApkDragDrop();
+  setupLogcatModal();
 
   // 10. MT Manager Transfer & Navigation
   document.getElementById('btn-pc-go').addEventListener('click', () => {
@@ -1048,6 +1413,72 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fastboot-terminal-log').textContent = '[IDLE] Waiting for fastboot commands...';
     document.getElementById('fastboot-progress-bar').style.width = '0%';
   });
+
+  // Fastboot file & folder pickers
+  const btnBrowseImg = document.getElementById('btn-browse-image');
+  if (btnBrowseImg) {
+    btnBrowseImg.addEventListener('click', async () => {
+      try {
+        const path = await invoke('pick_file', {
+          title: 'Select Partition Image',
+          filterName: 'Disk Image (*.img)',
+          filterPattern: '*.img'
+        });
+        if (path) {
+          document.getElementById('single-image-path').value = path;
+        }
+      } catch (e) {
+        console.error('Pick image error:', e);
+      }
+    });
+  }
+
+  const btnBrowseRom = document.getElementById('btn-browse-rom');
+  if (btnBrowseRom) {
+    btnBrowseRom.addEventListener('click', async () => {
+      try {
+        const path = await invoke('pick_folder', {
+          title: 'Select Extracted Fastboot ROM Directory'
+        });
+        if (path) {
+          document.getElementById('rom-folder-path').value = path;
+          try {
+            const romInfo = await invoke('parse_rom_directory', { folderPath: path });
+            const scriptSelect = document.getElementById('rom-script-select');
+            if (scriptSelect && romInfo && romInfo.scripts) {
+              scriptSelect.innerHTML = '';
+              romInfo.scripts.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                scriptSelect.appendChild(opt);
+              });
+            }
+          } catch (pe) {
+            console.warn('ROM parse warning:', pe);
+          }
+        }
+      } catch (e) {
+        console.error('Pick ROM folder error:', e);
+      }
+    });
+  }
+
+  const btnFastbootReboot = document.getElementById('btn-fastboot-reboot');
+  if (btnFastbootReboot) {
+    btnFastbootReboot.addEventListener('click', async () => {
+      if (confirm('Reboot Fastboot device to system?')) {
+        try {
+          await invoke('reboot_fastboot', {
+            serial: AppState.currentFastbootDevice,
+            target: 'system'
+          });
+        } catch (e) {
+          alert(`Reboot failed: ${e}`);
+        }
+      }
+    });
+  }
 
   // Initial Data Fetch
   loadPcDirectory('/home');

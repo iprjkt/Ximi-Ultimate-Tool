@@ -13,7 +13,7 @@ const C_WHITE: &str = "\x1b[38;2;248;250;252m";
 const C_GRAY: &str = "\x1b[38;2;148;163;184m";
 
 #[tauri::command]
-pub fn run_fastfetch(serial: Option<String>) -> Result<String, String> {
+pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<String, String> {
     let specs = get_device_specs(serial.clone()).unwrap_or_else(|_| crate::adb::DeviceSpecs {
         market_name: "Xiaomi HyperOS Device".into(),
         model: "HyperOS".into(),
@@ -78,7 +78,8 @@ pub fn run_fastfetch(serial: Option<String>) -> Result<String, String> {
         "1080x2400".into()
     };
 
-    let title_user = "root";
+    let is_root = root_mode.unwrap_or(false);
+    let title_user = if is_root { "root" } else { "shell" };
     let device_host = &specs.device;
     let title_line = format!("{C_BOLD}{C_PURPLE}{title_user}{C_RESET}@{C_BOLD}{C_BLUE}{device_host}{C_RESET}");
     let sep_len = format!("{}@{}", title_user, device_host).len();
@@ -104,6 +105,7 @@ pub fn run_fastfetch(serial: Option<String>) -> Result<String, String> {
         format!("{C_BOLD}{C_PURPLE}OS{C_RESET}: Xiaomi HyperOS {}", specs.hyperos_version),
         format!("{C_BOLD}{C_PURPLE}Host{C_RESET}: {} ({})", specs.market_name, specs.model),
         format!("{C_BOLD}{C_PURPLE}Kernel{C_RESET}: {}", kernel_str),
+        format!("{C_BOLD}{C_PURPLE}User{C_RESET}: {} ({})", title_user, if is_root { "Privileged UID 0" } else { "Unprivileged UID 2000" }),
         format!("{C_BOLD}{C_PURPLE}Android{C_RESET}: {}", specs.android_ver),
         format!("{C_BOLD}{C_PURPLE}Uptime{C_RESET}: {}", uptime_str),
         format!("{C_BOLD}{C_PURPLE}Display{C_RESET}: {}", res_str),
