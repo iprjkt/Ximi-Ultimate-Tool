@@ -223,6 +223,9 @@ function applyLanguage(lang) {
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
+    if (el.id === 'ap-market-name' && AppState.currentAdbDevice) {
+      return;
+    }
     if (dict[key]) {
       el.textContent = dict[key];
     }
@@ -365,6 +368,7 @@ async function refreshDevices() {
       AppState.currentAdbDevice = null;
       deviceDot.className = 'status-dot disconnected';
       headerDevName.textContent = I18N[currentLang].no_device;
+      clearDeviceSpecs();
     }
   } catch (e) {
     console.error('Error refreshing ADB devices:', e);
@@ -393,31 +397,73 @@ async function refreshDevices() {
   }
 }
 
+function clearDeviceSpecs() {
+  const dict = I18N[currentLang] || I18N.en;
+  const noDevText = dict.no_device || 'No Device Connected';
+
+  // Quick specs (ADB View)
+  ['qs-model', 'qs-codename', 'qs-hyperos', 'qs-android', 'qs-battery'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '-';
+  });
+
+  // About Phone Card (Settings View)
+  const apBrand = document.getElementById('ap-brand-title');
+  if (apBrand) apBrand.textContent = 'Xiaomi HyperOS';
+  const apVer = document.getElementById('ap-version-incremental');
+  if (apVer) apVer.textContent = '-';
+  const apMarket = document.getElementById('ap-market-name');
+  if (apMarket) apMarket.textContent = noDevText;
+  const apCode = document.getElementById('ap-codename');
+  if (apCode) apCode.textContent = '-';
+  const apCpu = document.getElementById('ap-cpu');
+  if (apCpu) apCpu.textContent = '-';
+  const apRam = document.getElementById('ap-ram');
+  if (apRam) apRam.textContent = '-';
+  const apStorage = document.getElementById('ap-storage');
+  if (apStorage) apStorage.textContent = '-';
+  const apBattery = document.getElementById('ap-battery');
+  if (apBattery) apBattery.textContent = '-';
+  const apAndroid = document.getElementById('ap-android');
+  if (apAndroid) apAndroid.textContent = '-';
+  const apSecurity = document.getElementById('ap-security');
+  if (apSecurity) apSecurity.textContent = '-';
+}
+
 async function loadDeviceSpecs(serial) {
+  if (!serial) {
+    clearDeviceSpecs();
+    return;
+  }
   try {
     const specs = await invoke('get_device_specs', { serial });
-    if (!specs) return;
+    if (!specs) {
+      clearDeviceSpecs();
+      return;
+    }
 
     // Quick specs
-    document.getElementById('qs-model').textContent = specs.model || '-';
-    document.getElementById('qs-codename').textContent = specs.device || '-';
-    document.getElementById('qs-hyperos').textContent = specs.hyperos_version || '-';
-    document.getElementById('qs-android').textContent = specs.android_ver || '-';
-    document.getElementById('qs-battery').textContent = specs.battery || '-';
+    document.getElementById('qs-model').textContent = specs.model && specs.model !== '-' ? specs.model : '-';
+    document.getElementById('qs-codename').textContent = specs.device && specs.device !== '-' ? specs.device : '-';
+    document.getElementById('qs-hyperos').textContent = specs.hyperos_version && specs.hyperos_version !== '-' ? specs.hyperos_version : '-';
+    document.getElementById('qs-android').textContent = specs.android_ver && specs.android_ver !== '-' ? specs.android_ver : '-';
+    document.getElementById('qs-battery').textContent = specs.battery && specs.battery !== '-' ? specs.battery : '-';
 
-    // About Phone Card (example.png replica)
-    document.getElementById('ap-brand-title').textContent = `${specs.brand || 'Xiaomi'} HyperOS`;
-    document.getElementById('ap-version-incremental').textContent = specs.hyperos_version || 'OS4.0.0.3';
-    document.getElementById('ap-market-name').textContent = specs.market_name || specs.model || 'Xiaomi Device';
-    document.getElementById('ap-codename').textContent = specs.device || 'tanzanite';
-    document.getElementById('ap-cpu').textContent = specs.cpu || 'Octa-core';
-    document.getElementById('ap-ram').textContent = specs.ram || '8.0GB';
-    document.getElementById('ap-storage').textContent = specs.storage || '72.5GB/256GB';
-    document.getElementById('ap-battery').textContent = specs.battery || '5000mAh';
-    document.getElementById('ap-android').textContent = specs.android_ver || '14';
-    document.getElementById('ap-security').textContent = specs.security_patch || '-';
+    // About Phone Card (Settings View)
+    const brand = specs.brand && specs.brand !== '-' ? specs.brand : 'Xiaomi';
+    document.getElementById('ap-brand-title').textContent = `${brand} HyperOS`;
+    document.getElementById('ap-version-incremental').textContent = specs.hyperos_version && specs.hyperos_version !== '-' ? specs.hyperos_version : '-';
+    document.getElementById('ap-market-name').textContent = specs.market_name && specs.market_name !== '-' ? specs.market_name : (specs.model && specs.model !== '-' ? specs.model : '-');
+    document.getElementById('ap-codename').textContent = specs.device && specs.device !== '-' ? specs.device : '-';
+    document.getElementById('ap-cpu').textContent = specs.cpu && specs.cpu !== '-' ? specs.cpu : '-';
+    document.getElementById('ap-ram').textContent = specs.ram && specs.ram !== '-' ? specs.ram : '-';
+    document.getElementById('ap-storage').textContent = specs.storage && specs.storage !== '-' ? specs.storage : '-';
+    document.getElementById('ap-battery').textContent = specs.battery && specs.battery !== '-' ? specs.battery : '-';
+    document.getElementById('ap-android').textContent = specs.android_ver && specs.android_ver !== '-' ? specs.android_ver : '-';
+    document.getElementById('ap-security').textContent = specs.security_patch && specs.security_patch !== '-' ? specs.security_patch : '-';
   } catch (e) {
-    console.error('Failed to load specs:', e);
+    console.warn('Failed to load specs:', e);
+    clearDeviceSpecs();
   }
 }
 
@@ -1209,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Initialize Theme & Language
   applyTheme(currentTheme);
   applyLanguage(currentLang);
+  clearDeviceSpecs();
 
   // 2. Dock navigation
   setupDockNavigation();
@@ -1239,6 +1286,8 @@ document.addEventListener('DOMContentLoaded', () => {
       loadDeviceSpecs(AppState.currentAdbDevice);
       loadPackages(AppState.currentAdbDevice, AppState.currentFilter);
       loadAndroidDirectory(AppState.androidCurrentPath);
+    } else {
+      clearDeviceSpecs();
     }
   });
 

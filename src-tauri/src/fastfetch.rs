@@ -14,21 +14,11 @@ const C_GRAY: &str = "\x1b[38;2;148;163;184m";
 
 #[tauri::command]
 pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<String, String> {
-    let specs = get_device_specs(serial.clone()).unwrap_or_else(|_| crate::adb::DeviceSpecs {
-        market_name: "Xiaomi HyperOS Device".into(),
-        model: "HyperOS".into(),
-        device: "hyperos".into(),
-        brand: "Xiaomi".into(),
-        android_ver: "14".into(),
-        security_patch: "2026-09-01".into(),
-        hyperos_version: "OS4.0.0.3".into(),
-        hyperos_short: "4.0.0.3".into(),
-        cpu: "Octa-core Max 2.8GHz".into(),
-        ram: "8.0GB".into(),
-        storage: "72.5GB/256GB".into(),
-        battery: "5000mAh (100%)".into(),
-    });
+    if serial.as_deref().map_or(true, |s| s.trim().is_empty()) {
+        return Err("No ADB device connected. Please connect a device first.".to_string());
+    }
 
+    let specs = get_device_specs(serial.clone())?;
     let s_ref = serial.as_deref();
 
     // Kernel uname
@@ -38,9 +28,10 @@ pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<
     }
     uname_args.extend_from_slice(&["shell", "uname", "-r"]);
     let kernel_str = if let Ok((0, out, _)) = run_adb_cmd(&uname_args) {
-        out.trim().to_string()
+        let trimmed = out.trim();
+        if trimmed.is_empty() { "-".to_string() } else { trimmed.to_string() }
     } else {
-        "Linux 5.15.x-android".to_string()
+        "-".to_string()
     };
 
     // Uptime
@@ -49,7 +40,7 @@ pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<
         uptime_args.extend_from_slice(&["-s", s]);
     }
     uptime_args.extend_from_slice(&["shell", "cat", "/proc/uptime"]);
-    let mut uptime_str = "1 day, 4 hours".to_string();
+    let mut uptime_str = "-".to_string();
     if let Ok((0, out, _)) = run_adb_cmd(&uptime_args) {
         if let Some(first) = out.split_whitespace().next() {
             if let Ok(sec) = first.parse::<f64>() {
@@ -73,9 +64,9 @@ pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<
     }
     wm_args.extend_from_slice(&["shell", "wm", "size"]);
     let res_str = if let Ok((0, out, _)) = run_adb_cmd(&wm_args) {
-        out.split(':').nth(1).map(|s| s.trim().to_string()).unwrap_or_else(|| "1080x2400".into())
+        out.split(':').nth(1).map(|s| s.trim().to_string()).unwrap_or_else(|| "-".into())
     } else {
-        "1080x2400".into()
+        "-".into()
     };
 
     let is_root = root_mode.unwrap_or(false);

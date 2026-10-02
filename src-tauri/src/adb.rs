@@ -387,16 +387,22 @@ pub fn get_adb_devices() -> Result<Vec<DeviceInfo>, String> {
 #[tauri::command]
 pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
     let s_ref = serial.as_deref();
+    if s_ref.is_none() {
+        return Err("No device specified".to_string());
+    }
 
-    let hyperos_incremental = get_prop(s_ref, "ro.mi.os.version.incremental");
-    let hyperos_name = get_prop(s_ref, "ro.miui.ui.version.name");
     let android_ver = get_prop(s_ref, "ro.build.version.release");
-    let security_patch = get_prop(s_ref, "ro.build.version.security_patch");
-
-    let market_name = get_prop(s_ref, "ro.product.marketname");
     let model = get_prop(s_ref, "ro.product.model");
     let device = get_prop(s_ref, "ro.product.device");
+    let market_name = get_prop(s_ref, "ro.product.marketname");
     let brand = get_prop(s_ref, "ro.product.brand");
+    let hyperos_incremental = get_prop(s_ref, "ro.mi.os.version.incremental");
+    let hyperos_name = get_prop(s_ref, "ro.miui.ui.version.name");
+    let security_patch = get_prop(s_ref, "ro.build.version.security_patch");
+
+    if android_ver.is_empty() && model.is_empty() && device.is_empty() && market_name.is_empty() {
+        return Err("Device not responding or disconnected".to_string());
+    }
 
     let final_market = if !market_name.is_empty() {
         market_name
@@ -405,7 +411,7 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
     } else if !device.is_empty() {
         device.clone()
     } else {
-        "Xiaomi Device".to_string()
+        "-".to_string()
     };
 
     let (hyperos_ver, hyperos_short) = if !hyperos_incremental.is_empty() {
@@ -417,9 +423,9 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
         };
         (hyperos_incremental, short)
     } else if !hyperos_name.is_empty() {
-        (hyperos_name, "1.0.0.0".to_string())
+        (hyperos_name.clone(), hyperos_name)
     } else {
-        ("Xiaomi HyperOS 1.0".to_string(), "1.0.0.0".to_string())
+        ("-".to_string(), "-".to_string())
     };
 
     // CPU / SoC
@@ -431,11 +437,28 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
         soc = get_prop(s_ref, "ro.hardware");
     }
     if soc.is_empty() {
-        soc = "Octa-core Processor".to_string();
+        let mut cpu_args = Vec::new();
+        if let Some(s) = s_ref {
+            cpu_args.extend_from_slice(&["-s", s]);
+        }
+        cpu_args.extend_from_slice(&["shell", "cat", "/proc/cpuinfo"]);
+        if let Ok((0, cpu_out, _)) = run_adb_cmd(&cpu_args) {
+            for line in cpu_out.lines() {
+                if line.starts_with("Hardware") || line.starts_with("model name") {
+                    if let Some(val) = line.split(':').nth(1) {
+                        soc = val.trim().to_string();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if soc.is_empty() {
+        soc = "-".to_string();
     }
 
     // RAM
-    let mut ram_str = "8.0GB".to_string();
+    let mut ram_str = "-".to_string();
     let mut mem_args = Vec::new();
     if let Some(s) = s_ref {
         mem_args.extend_from_slice(&["-s", s]);
@@ -449,17 +472,17 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
                     if let Ok(kb) = parts[1].parse::<f64>() {
                         let gb = kb / (1024.0 * 1024.0);
                         ram_str = if gb <= 4.3 {
-                            "4.0GB".to_string()
+                            "4.0 GB".to_string()
                         } else if gb <= 6.3 {
-                            "6.0GB".to_string()
+                            "6.0 GB".to_string()
                         } else if gb <= 8.5 {
-                            "8.0GB".to_string()
+                            "8.0 GB".to_string()
                         } else if gb <= 12.5 {
-                            "12.0GB".to_string()
+                            "12.0 GB".to_string()
                         } else if gb <= 16.5 {
-                            "16.0GB".to_string()
+                            "16.0 GB".to_string()
                         } else {
-                            format!("{:.1}GB", gb)
+                            format!("{:.1} GB", gb)
                         };
                     }
                 }
@@ -469,7 +492,7 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
     }
 
     // Storage
-    let mut storage_str = "72.5GB/256GB".to_string();
+    let mut storage_str = "-".to_string();
     let mut df_args = Vec::new();
     if let Some(s) = s_ref {
         df_args.extend_from_slice(&["-s", s]);
@@ -482,39 +505,38 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
             if parts.len() >= 4 {
                 let size = parts[1];
                 let used = parts[2];
-                storage_str = format!("{}/{}", used, size);
+                storage_str = format!("{} / {}", used, size);
             }
         }
     }
 
     // Battery
-    let mut battery_str = "5000mAh (typ)".to_string();
+    let mut battery_str = "-".to_string();
     let mut batt_args = Vec::new();
     if let Some(s) = s_ref {
         batt_args.extend_from_slice(&["-s", s]);
     }
     batt_args.extend_from_slice(&["shell", "dumpsys battery"]);
     if let Ok((0, batt_out, _)) = run_adb_cmd(&batt_args) {
-        let mut level = "100";
+        let mut level: Option<String> = None;
         for line in batt_out.lines() {
             if line.contains("level:") {
                 if let Some(l) = line.split(':').nth(1) {
-                    level = l.trim();
+                    level = Some(l.trim().to_string());
                 }
             }
         }
-        battery_str = format!("5000mAh ({}%)", level);
-        if final_market.contains("14") {
-            battery_str = format!("5500mAh(typ) ({}%)", level);
+        if let Some(lvl) = level {
+            battery_str = format!("{}%", lvl);
         }
     }
 
     Ok(DeviceSpecs {
         market_name: final_market,
-        model: if model.is_empty() { device.clone() } else { model },
-        device: if device.is_empty() { "hyperos".to_string() } else { device },
-        brand: if brand.is_empty() { "Xiaomi".to_string() } else { brand },
-        android_ver: if android_ver.is_empty() { "14".to_string() } else { android_ver },
+        model: if model.is_empty() { "-".to_string() } else { model },
+        device: if device.is_empty() { "-".to_string() } else { device },
+        brand: if brand.is_empty() { "-".to_string() } else { brand },
+        android_ver: if android_ver.is_empty() { "-".to_string() } else { android_ver },
         security_patch: if security_patch.is_empty() { "-".to_string() } else { security_patch },
         hyperos_version: hyperos_ver,
         hyperos_short,
