@@ -133,29 +133,44 @@ pub fn reboot_fastboot(serial: Option<String>, mode: String) -> Result<String, S
 }
 
 #[tauri::command]
-pub fn parse_rom_directory(folder_path: String) -> Result<RomInfo, String> {
+pub fn parse_rom_directory(folder_path: String, script_name: Option<String>) -> Result<RomInfo, String> {
     let dir = Path::new(&folder_path);
     if !dir.is_dir() {
         return Err("Specified ROM path is not a valid directory.".to_string());
     }
 
+    let is_windows = cfg!(target_os = "windows");
+    let preferred_ext = if is_windows { ".bat" } else { ".sh" };
+
     // Collect all flash scripts
-    let mut available_scripts = Vec::new();
+    let mut all_scripts = Vec::new();
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                 if file_name.starts_with("flash_") && (file_name.ends_with(".sh") || file_name.ends_with(".bat")) {
-                    available_scripts.push(file_name.to_string());
+                    all_scripts.push(file_name.to_string());
                 }
             }
         }
     }
 
+    // Filter scripts according to host OS (.bat for Windows, .sh for Linux/macOS)
+    let mut available_scripts: Vec<String> = all_scripts
+        .iter()
+        .filter(|s| s.ends_with(preferred_ext))
+        .cloned()
+        .collect();
+
+    // Fallback if no scripts match the current OS extension
+    if available_scripts.is_empty() {
+        available_scripts = all_scripts;
+    }
+
     // Sort so flash_all is first, then flash_all_except_*, then flash_all_lock
     available_scripts.sort_by(|a, b| {
         let score = |s: &str| {
-            if s.starts_with("flash_all.sh") || s.starts_with("flash_all.bat") {
+            if s.starts_with("flash_all.") {
                 0
             } else if s.contains("except") {
                 1
@@ -168,14 +183,26 @@ pub fn parse_rom_directory(folder_path: String) -> Result<RomInfo, String> {
         score(a).cmp(&score(b))
     });
 
-    let default_script = available_scripts
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "flash_all.sh".to_string());
+    let default_script = if let Some(ref custom_script) = script_name {
+        if available_scripts.contains(custom_script) {
+            custom_script.clone()
+        } else {
+            available_scripts.first().cloned().unwrap_or_else(|| {
+                if is_windows { "flash_all.bat".to_string() } else { "flash_all.sh".to_string() }
+            })
+        }
+    } else {
+        available_scripts
+            .first()
+            .cloned()
+            .unwrap_or_else(|| {
+                if is_windows { "flash_all.bat".to_string() } else { "flash_all.sh".to_string() }
+            })
+    };
 
     let mut items = Vec::new();
 
-    // Prefer parsing the default script (e.g. flash_all.sh)
+    // Prefer parsing the selected/default script
     let script_path = dir.join(&default_script);
     if script_path.exists() {
         if let Ok(content) = fs::read_to_string(&script_path) {
@@ -183,19 +210,22 @@ pub fn parse_rom_directory(folder_path: String) -> Result<RomInfo, String> {
             let mut idx = 1;
             for line in content.lines() {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') || trimmed.starts_with("rem") || trimmed.is_empty() {
+                let lower = trimmed.to_lowercase();
+                if lower.starts_with('#') || lower.starts_with("rem") || lower.starts_with("::") || trimmed.is_empty() {
                     continue;
                 }
                 if let Some(caps) = re_flash.captures(trimmed) {
                     let part = caps[1].trim().to_string();
                     let raw_img = caps[2].trim();
-                    let clean_filename = raw_img
+                    let img_part = raw_img.split("||").next().unwrap_or(raw_img).trim();
+                    let img_part = img_part.split('|').next().unwrap_or(img_part).trim();
+                    let clean_filename = img_part
                         .split('/')
                         .last()
-                        .unwrap_or(raw_img)
+                        .unwrap_or(img_part)
                         .split('\\')
                         .last()
-                        .unwrap_or(raw_img)
+                        .unwrap_or(img_part)
                         .replace('`', "")
                         .replace('"', "")
                         .replace('\'', "")
@@ -279,6 +309,7 @@ pub async fn flash_rom(
         return Err(format!("Script {} not found in ROM folder", script_name));
     }
 
+    let is_windows = cfg!(target_os = "windows");
     let excluded_set: HashSet<String> = excluded_partitions.into_iter().collect();
 
     // If partitions were excluded, parse the script and execute line-by-line skipping excluded ones
@@ -291,7 +322,8 @@ pub async fn flash_rom(
 
         for (idx, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("rem") {
+            let lower = trimmed.to_lowercase();
+            if trimmed.is_empty() || lower.starts_with('#') || lower.starts_with("rem") || lower.starts_with("::") {
                 continue;
             }
 
@@ -307,14 +339,50 @@ pub async fn flash_rom(
             let _ = app.emit("fastboot-progress", pct);
             let _ = app.emit("fastboot-log", format!("> {}", trimmed));
 
-            let mut cmd = TokioCommand::new("bash");
-            cmd.arg("-c");
-            let cmd_with_serial = if let Some(ref s) = serial {
-                trimmed.replace("fastboot $*", &format!("fastboot -s {}", s))
-                       .replace("fastboot", &format!("fastboot -s {}", s))
+            let mut cmd = if is_windows {
+                let mut c = TokioCommand::new("cmd");
+                c.arg("/c");
+                c
             } else {
-                trimmed.replace("fastboot $*", "fastboot")
+                let mut c = TokioCommand::new("bash");
+                c.arg("-c");
+                c
             };
+
+            let cmd_with_serial = if is_windows {
+                let mut s_cmd = trimmed
+                    .replace("%~dp0", &format!("{}\\", dir.display()))
+                    .replace("pause", "echo [CONTINUE]");
+                if let Some(ref s) = serial {
+                    if s_cmd.contains("fastboot %*") {
+                        s_cmd = s_cmd.replace("fastboot %*", &format!("fastboot -s {}", s));
+                    } else if s_cmd.contains("fastboot $*") {
+                        s_cmd = s_cmd.replace("fastboot $*", &format!("fastboot -s {}", s));
+                    } else {
+                        s_cmd = s_cmd.replace("fastboot ", &format!("fastboot -s {} ", s));
+                    }
+                } else {
+                    s_cmd = s_cmd.replace("fastboot %*", "fastboot")
+                                 .replace("fastboot $*", "fastboot");
+                }
+                s_cmd
+            } else {
+                let mut s_cmd = trimmed.to_string();
+                if let Some(ref s) = serial {
+                    if s_cmd.contains("fastboot $*") {
+                        s_cmd = s_cmd.replace("fastboot $*", &format!("fastboot -s {}", s));
+                    } else if s_cmd.contains("fastboot %*") {
+                        s_cmd = s_cmd.replace("fastboot %*", &format!("fastboot -s {}", s));
+                    } else {
+                        s_cmd = s_cmd.replace("fastboot ", &format!("fastboot -s {} ", s));
+                    }
+                } else {
+                    s_cmd = s_cmd.replace("fastboot $*", "fastboot")
+                                 .replace("fastboot %*", "fastboot");
+                }
+                s_cmd
+            };
+
             cmd.arg(&cmd_with_serial);
             cmd.current_dir(dir);
             cmd.stdout(Stdio::piped());
@@ -354,11 +422,22 @@ pub async fn flash_rom(
     }
 
     // Direct script execution
-    let mut cmd = TokioCommand::new("bash");
-    cmd.arg(&script_file);
-    if let Some(ref s) = serial {
-        cmd.arg("-s").arg(s);
-    }
+    let mut cmd = if is_windows {
+        let mut c = TokioCommand::new("cmd");
+        c.arg("/c").arg(&script_file);
+        if let Some(ref s) = serial {
+            c.arg("-s").arg(s);
+        }
+        c
+    } else {
+        let mut c = TokioCommand::new("bash");
+        c.arg(&script_file);
+        if let Some(ref s) = serial {
+            c.arg("-s").arg(s);
+        }
+        c
+    };
+
     cmd.current_dir(dir);
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -400,3 +479,47 @@ pub async fn flash_rom(
         Err(err_msg)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_rom_directory_os_filtering() {
+        let test_rom_path = "/run/media/fxxyz73/sigeonpex/ROM_Fastboot_Recovery_ISO/tanzanite_eea_global_images_OS2.0.214.0.VOGEUXM_15.0";
+        if !Path::new(test_rom_path).exists() {
+            return;
+        }
+
+        let res = parse_rom_directory(test_rom_path.to_string(), None);
+        assert!(res.is_ok(), "Failed to parse ROM: {:?}", res.err());
+        let rom_info = res.unwrap();
+
+        // On Linux, should only contain .sh scripts
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert!(!rom_info.scripts.is_empty());
+            for script in &rom_info.scripts {
+                assert!(script.ends_with(".sh"), "Expected .sh script on Linux, found: {}", script);
+            }
+            assert_eq!(rom_info.default_script, "flash_all.sh");
+        }
+
+        // On Windows, should only contain .bat scripts
+        #[cfg(target_os = "windows")]
+        {
+            assert!(!rom_info.scripts.is_empty());
+            for script in &rom_info.scripts {
+                assert!(script.ends_with(".bat"), "Expected .bat script on Windows, found: {}", script);
+            }
+            assert_eq!(rom_info.default_script, "flash_all.bat");
+        }
+
+        // Verify partitions are parsed
+        assert!(!rom_info.partitions.is_empty(), "Partitions should not be empty");
+        println!("Loaded scripts: {:?}", rom_info.scripts);
+        println!("Default script: {}", rom_info.default_script);
+        println!("Loaded partitions count: {}", rom_info.partitions.len());
+    }
+}
+

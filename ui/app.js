@@ -75,6 +75,10 @@ const I18N = {
     boot_image_btn: "Temporarily Boot Image",
     rom_folder: "Fastboot ROM Directory:",
     flash_script: "Flash Script:",
+    select_rom_first: "Select Fastboot ROM directory first...",
+    script_clean_all: "Clean All (Recommended)",
+    script_save_data: "Save User Data",
+    script_lock_bl: "Clean All & Lock Bootloader (CAUTION)",
     advance_partitions: "Advanced Partition Control",
     advance_tip: "Uncheck dangerous partitions (preloader, nvram) to avoid hard brick",
     select_rom_prompt: "Select ROM folder to load partitions",
@@ -168,6 +172,10 @@ const I18N = {
     boot_image_btn: "Boot Image Sementara",
     rom_folder: "Direktori ROM Fastboot:",
     flash_script: "Skrip Flash:",
+    select_rom_first: "Pilih direktori ROM Fastboot terlebih dahulu...",
+    script_clean_all: "Bersihkan Semua (Rekomendasi)",
+    script_save_data: "Simpan Data Pengguna",
+    script_lock_bl: "Bersihkan Semua & Kunci Bootloader (PERINGATAN)",
     advance_partitions: "Kontrol Partisi Lanjutan",
     advance_tip: "Hapus centang partisi berbahaya (preloader, nvram) untuk mencegah hard brick",
     select_rom_prompt: "Pilih folder ROM untuk memuat daftar partisi",
@@ -809,18 +817,19 @@ async function handleRomDirectorySelected(folderPath) {
     const scriptSelect = document.getElementById('rom-script-select');
     if (scriptSelect && romInfo.scripts && romInfo.scripts.length > 0) {
       scriptSelect.innerHTML = '';
+      const dict = I18N[currentLang] || I18N.en;
       romInfo.scripts.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s;
-        let label = s;
+        let desc = '';
         if (s.startsWith('flash_all.sh') || s.startsWith('flash_all.bat')) {
-          label = `${s} (Clean All - Recommended)`;
+          desc = dict.script_clean_all || 'Clean All (Recommended)';
         } else if (s.includes('except')) {
-          label = `${s} (Save User Data)`;
+          desc = dict.script_save_data || 'Save User Data';
         } else if (s.includes('lock')) {
-          label = `${s} (Clean All & Lock Bootloader - CAUTION)`;
+          desc = dict.script_lock_bl || 'Clean All & Lock Bootloader (CAUTION)';
         }
-        opt.textContent = label;
+        opt.textContent = desc ? `${s} (${desc})` : s;
         scriptSelect.appendChild(opt);
       });
       scriptSelect.value = romInfo.default_script;
@@ -1674,7 +1683,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const scriptSelect = document.getElementById('rom-script-select');
-      const scriptName = scriptSelect ? scriptSelect.value : 'flash_all.sh';
+      const scriptName = scriptSelect ? scriptSelect.value : '';
+      if (!scriptName) {
+        alert(currentLang === 'id' ? 'Silakan pilih skrip flash yang valid terlebih dahulu.' : 'Please select a valid flash script first.');
+        return;
+      }
 
       const excludedPartitions = [];
       document.querySelectorAll('.rom-part-check').forEach(cb => {
@@ -1710,6 +1723,28 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         appendFastbootLog(`[ERROR] ${err}`);
         alert(`Flashing error: ${err}`);
+      }
+    });
+  }
+
+  // Flash script change listener to dynamically refresh partitions
+  const romScriptSelect = document.getElementById('rom-script-select');
+  if (romScriptSelect) {
+    romScriptSelect.addEventListener('change', async (e) => {
+      const folderPath = document.getElementById('rom-folder-path').value.trim();
+      const scriptName = e.target.value;
+      if (!folderPath || !scriptName) return;
+
+      try {
+        appendFastbootLog(`[INFO] Switching script to: ${scriptName}...`);
+        const romInfo = await invoke('parse_rom_directory', { folderPath, scriptName });
+        if (romInfo && romInfo.partitions) {
+          currentRomPartitions = romInfo.partitions;
+          renderRomPartitions(currentRomPartitions);
+          appendFastbootLog(`[INFO] Loaded ${currentRomPartitions.length} partitions for ${scriptName}`);
+        }
+      } catch (err) {
+        appendFastbootLog(`[ERROR] Failed to update partitions for script: ${err}`);
       }
     });
   }
