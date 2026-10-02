@@ -90,10 +90,19 @@ pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<
         "                   ".to_string(),
     ];
 
+    let os_display = if specs.rom_type == "HyperOS" {
+        format!("Xiaomi HyperOS {}", specs.hyperos_version)
+    } else if specs.rom_type == "MIUI" {
+        format!("{} {}", specs.rom_name, specs.hyperos_version)
+    } else {
+        format!("{} ({})", specs.rom_name, specs.rom_version)
+    };
+
     let info_rows = [
         title_line,
         separator,
-        format!("{C_BOLD}{C_PURPLE}OS{C_RESET}: Xiaomi HyperOS {}", specs.hyperos_version),
+        format!("{C_BOLD}{C_PURPLE}OS{C_RESET}: {}", os_display),
+        format!("{C_BOLD}{C_PURPLE}ROM Type{C_RESET}: {}", specs.rom_type),
         format!("{C_BOLD}{C_PURPLE}Host{C_RESET}: {} ({})", specs.market_name, specs.model),
         format!("{C_BOLD}{C_PURPLE}Kernel{C_RESET}: {}", kernel_str),
         format!("{C_BOLD}{C_PURPLE}User{C_RESET}: {} ({})", title_user, if is_root { "Privileged UID 0" } else { "Unprivileged UID 2000" }),

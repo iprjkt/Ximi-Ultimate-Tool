@@ -21,6 +21,9 @@ pub struct DeviceSpecs {
     pub security_patch: String,
     pub hyperos_version: String,
     pub hyperos_short: String,
+    pub rom_type: String,
+    pub rom_name: String,
+    pub rom_version: String,
     pub cpu: String,
     pub ram: String,
     pub storage: String,
@@ -384,6 +387,332 @@ pub fn get_adb_devices() -> Result<Vec<DeviceInfo>, String> {
     Ok(devices)
 }
 
+#[derive(Debug, Clone)]
+pub struct RomDetails {
+    pub rom_type: String,
+    pub rom_name: String,
+    pub rom_version: String,
+    pub short_version: String,
+}
+
+pub fn detect_rom(s_ref: Option<&str>, android_ver: &str) -> RomDetails {
+    // 1. Xiaomi HyperOS Check
+    let hyperos_incremental = get_prop(s_ref, "ro.mi.os.version.incremental");
+    let hyperos_name = get_prop(s_ref, "ro.mi.os.version.name");
+    let miui_ui_ver = get_prop(s_ref, "ro.miui.ui.version.name");
+    let miui_ver_code = get_prop(s_ref, "ro.miui.version.code_time");
+
+    if !hyperos_incremental.is_empty() || (!hyperos_name.is_empty() && hyperos_name.contains("OS")) || miui_ui_ver == "V816" {
+        let full_ver = if !hyperos_incremental.is_empty() {
+            hyperos_incremental.clone()
+        } else if !hyperos_name.is_empty() {
+            hyperos_name.clone()
+        } else {
+            "OS1.0".to_string()
+        };
+        let re = Regex::new(r"^(\d+\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)").unwrap();
+        let short = if let Some(caps) = re.captures(&full_ver) {
+            caps[1].to_string()
+        } else {
+            full_ver.clone()
+        };
+        return RomDetails {
+            rom_type: "HyperOS".to_string(),
+            rom_name: "Xiaomi HyperOS".to_string(),
+            rom_version: full_ver,
+            short_version: short,
+        };
+    }
+
+    // 2. Xiaomi MIUI Check
+    if !miui_ui_ver.is_empty() || !miui_ver_code.is_empty() {
+        let inc = get_prop(s_ref, "ro.build.version.incremental");
+        let full_ver = if !inc.is_empty() {
+            inc
+        } else if !miui_ui_ver.is_empty() {
+            miui_ui_ver.clone()
+        } else {
+            "MIUI".to_string()
+        };
+        return RomDetails {
+            rom_type: "MIUI".to_string(),
+            rom_name: if !miui_ui_ver.is_empty() { format!("Xiaomi MIUI {}", miui_ui_ver) } else { "Xiaomi MIUI".to_string() },
+            rom_version: full_ver.clone(),
+            short_version: full_ver,
+        };
+    }
+
+    // 3. Known AOSP Custom ROM Props
+    // LineageOS
+    let lineage_disp = get_prop(s_ref, "ro.lineage.display.version");
+    let lineage_ver = get_prop(s_ref, "ro.lineage.version");
+    let lineage_build = get_prop(s_ref, "ro.lineage.build.version");
+    if !lineage_disp.is_empty() || !lineage_ver.is_empty() || !lineage_build.is_empty() {
+        let v = if !lineage_disp.is_empty() {
+            lineage_disp
+        } else if !lineage_ver.is_empty() {
+            lineage_ver
+        } else {
+            lineage_build
+        };
+        return RomDetails {
+            rom_type: "LineageOS".to_string(),
+            rom_name: "LineageOS".to_string(),
+            short_version: v.split('-').next().unwrap_or(&v).to_string(),
+            rom_version: v,
+        };
+    }
+
+    // Pixel Experience
+    let pe_ver = get_prop(s_ref, "ro.pixelexperience.version");
+    let pe_ver2 = get_prop(s_ref, "ro.pe.version");
+    if !pe_ver.is_empty() || !pe_ver2.is_empty() {
+        let v = if !pe_ver.is_empty() { pe_ver } else { pe_ver2 };
+        return RomDetails {
+            rom_type: "Pixel Experience".to_string(),
+            rom_name: "Pixel Experience".to_string(),
+            short_version: v.split('-').next().unwrap_or(&v).to_string(),
+            rom_version: v,
+        };
+    }
+
+    // Evolution X
+    let evo_ver = get_prop(s_ref, "ro.evolution.version");
+    let evo_ver2 = get_prop(s_ref, "ro.evo.version");
+    if !evo_ver.is_empty() || !evo_ver2.is_empty() {
+        let v = if !evo_ver.is_empty() { evo_ver } else { evo_ver2 };
+        return RomDetails {
+            rom_type: "Evolution X".to_string(),
+            rom_name: "Evolution X".to_string(),
+            short_version: v.split('_').next().unwrap_or(&v).to_string(),
+            rom_version: v,
+        };
+    }
+
+    // crDroid
+    let cr_ver = get_prop(s_ref, "ro.crdroid.version");
+    let cr_ver2 = get_prop(s_ref, "ro.cr.version");
+    if !cr_ver.is_empty() || !cr_ver2.is_empty() {
+        let v = if !cr_ver.is_empty() { cr_ver } else { cr_ver2 };
+        return RomDetails {
+            rom_type: "crDroid".to_string(),
+            rom_name: "crDroid Android".to_string(),
+            short_version: v.clone(),
+            rom_version: v,
+        };
+    }
+
+    // ArrowOS
+    let arrow_ver = get_prop(s_ref, "ro.arrow.version");
+    if !arrow_ver.is_empty() {
+        return RomDetails {
+            rom_type: "ArrowOS".to_string(),
+            rom_name: "ArrowOS".to_string(),
+            short_version: arrow_ver.split('_').next().unwrap_or(&arrow_ver).to_string(),
+            rom_version: arrow_ver,
+        };
+    }
+
+    // Paranoid Android
+    let pa_ver = get_prop(s_ref, "ro.aospa.version");
+    let pa_ver2 = get_prop(s_ref, "ro.pa.version");
+    if !pa_ver.is_empty() || !pa_ver2.is_empty() {
+        let v = if !pa_ver.is_empty() { pa_ver } else { pa_ver2 };
+        return RomDetails {
+            rom_type: "Paranoid Android".to_string(),
+            rom_name: "Paranoid Android".to_string(),
+            short_version: v.clone(),
+            rom_version: v,
+        };
+    }
+
+    // RisingOS
+    let rising_ver = get_prop(s_ref, "ro.rising.version");
+    if !rising_ver.is_empty() {
+        return RomDetails {
+            rom_type: "RisingOS".to_string(),
+            rom_name: "RisingOS".to_string(),
+            short_version: rising_ver.split('-').next().unwrap_or(&rising_ver).to_string(),
+            rom_version: rising_ver,
+        };
+    }
+
+    // DerpFest
+    let derp_ver = get_prop(s_ref, "ro.derp.version");
+    if !derp_ver.is_empty() {
+        return RomDetails {
+            rom_type: "DerpFest".to_string(),
+            rom_name: "DerpFest".to_string(),
+            short_version: derp_ver.clone(),
+            rom_version: derp_ver,
+        };
+    }
+
+    // Project Elixir
+    let elixir_ver = get_prop(s_ref, "ro.elixir.version");
+    if !elixir_ver.is_empty() {
+        return RomDetails {
+            rom_type: "Project Elixir".to_string(),
+            rom_name: "Project Elixir".to_string(),
+            short_version: elixir_ver.clone(),
+            rom_version: elixir_ver,
+        };
+    }
+
+    // PixelOS
+    let pixelos_ver = get_prop(s_ref, "ro.pixelos.version");
+    if !pixelos_ver.is_empty() {
+        return RomDetails {
+            rom_type: "PixelOS".to_string(),
+            rom_name: "PixelOS".to_string(),
+            short_version: pixelos_ver.clone(),
+            rom_version: pixelos_ver,
+        };
+    }
+
+    // BlissROM
+    let bliss_ver = get_prop(s_ref, "ro.bliss.version");
+    if !bliss_ver.is_empty() {
+        return RomDetails {
+            rom_type: "BlissROM".to_string(),
+            rom_name: "BlissROM".to_string(),
+            short_version: bliss_ver.clone(),
+            rom_version: bliss_ver,
+        };
+    }
+
+    // Havoc-OS
+    let havoc_ver = get_prop(s_ref, "ro.havoc.version");
+    if !havoc_ver.is_empty() {
+        return RomDetails {
+            rom_type: "Havoc-OS".to_string(),
+            rom_name: "Havoc-OS".to_string(),
+            short_version: havoc_ver.clone(),
+            rom_version: havoc_ver,
+        };
+    }
+
+    // SparkOS
+    let spark_ver = get_prop(s_ref, "ro.spark.version");
+    if !spark_ver.is_empty() {
+        return RomDetails {
+            rom_type: "SparkOS".to_string(),
+            rom_name: "SparkOS".to_string(),
+            short_version: spark_ver.clone(),
+            rom_version: spark_ver,
+        };
+    }
+
+    // CherishOS
+    let cherish_ver = get_prop(s_ref, "ro.cherish.version");
+    if !cherish_ver.is_empty() {
+        return RomDetails {
+            rom_type: "CherishOS".to_string(),
+            rom_name: "CherishOS".to_string(),
+            short_version: cherish_ver.clone(),
+            rom_version: cherish_ver,
+        };
+    }
+
+    // CalyxOS
+    let calyx_ver = get_prop(s_ref, "ro.calyxos.version");
+    if !calyx_ver.is_empty() {
+        return RomDetails {
+            rom_type: "CalyxOS".to_string(),
+            rom_name: "CalyxOS".to_string(),
+            short_version: calyx_ver.clone(),
+            rom_version: calyx_ver,
+        };
+    }
+
+    // 4. Inspection of ro.build.display.id, ro.build.flavor, ro.modversion
+    let display_id = get_prop(s_ref, "ro.build.display.id");
+    let flavor = get_prop(s_ref, "ro.build.flavor");
+    let modversion = get_prop(s_ref, "ro.modversion");
+    let rom_ver_generic = get_prop(s_ref, "ro.rom.version");
+
+    let combined = format!("{} {} {} {}", display_id, flavor, modversion, rom_ver_generic).to_lowercase();
+
+    if combined.contains("lineage") {
+        let v = if !display_id.is_empty() { display_id } else { flavor };
+        return RomDetails {
+            rom_type: "LineageOS".to_string(),
+            rom_name: "LineageOS".to_string(),
+            short_version: "LineageOS".to_string(),
+            rom_version: v,
+        };
+    }
+    if combined.contains("pixel") {
+        let v = if !display_id.is_empty() { display_id } else { flavor };
+        return RomDetails {
+            rom_type: "Pixel AOSP".to_string(),
+            rom_name: "Pixel AOSP ROM".to_string(),
+            short_version: "Pixel AOSP".to_string(),
+            rom_version: v,
+        };
+    }
+    if combined.contains("evolution") {
+        let v = if !display_id.is_empty() { display_id } else { flavor };
+        return RomDetails {
+            rom_type: "Evolution X".to_string(),
+            rom_name: "Evolution X".to_string(),
+            short_version: "Evolution X".to_string(),
+            rom_version: v,
+        };
+    }
+    if combined.contains("crdroid") {
+        let v = if !display_id.is_empty() { display_id } else { flavor };
+        return RomDetails {
+            rom_type: "crDroid".to_string(),
+            rom_name: "crDroid Android".to_string(),
+            short_version: "crDroid".to_string(),
+            rom_version: v,
+        };
+    }
+    if combined.contains("graphene") {
+        let v = if !display_id.is_empty() { display_id } else { flavor };
+        return RomDetails {
+            rom_type: "GrapheneOS".to_string(),
+            rom_name: "GrapheneOS".to_string(),
+            short_version: "GrapheneOS".to_string(),
+            rom_version: v,
+        };
+    }
+
+    // 5. Fallback for pure AOSP / GSI
+    if combined.contains("aosp") || flavor.starts_with("aosp_") || display_id.starts_with("aosp_") {
+        let v = if !display_id.is_empty() {
+            display_id
+        } else {
+            format!("Android {}", android_ver)
+        };
+        return RomDetails {
+            rom_type: "AOSP".to_string(),
+            rom_name: "AOSP Pure".to_string(),
+            short_version: format!("Android {}", android_ver),
+            rom_version: v,
+        };
+    }
+
+    // If display_id is present and neither HyperOS nor MIUI
+    if !display_id.is_empty() && !display_id.contains("MIUI") {
+        return RomDetails {
+            rom_type: "AOSP / Custom".to_string(),
+            rom_name: "AOSP Custom ROM".to_string(),
+            short_version: format!("Android {}", android_ver),
+            rom_version: display_id,
+        };
+    }
+
+    // Default fallback
+    RomDetails {
+        rom_type: "AOSP".to_string(),
+        rom_name: "AOSP Android".to_string(),
+        short_version: if android_ver.is_empty() { "-".to_string() } else { format!("Android {}", android_ver) },
+        rom_version: if !display_id.is_empty() { display_id } else { "-".to_string() },
+    }
+}
+
 #[tauri::command]
 pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
     let s_ref = serial.as_deref();
@@ -396,8 +725,6 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
     let device = get_prop(s_ref, "ro.product.device");
     let market_name = get_prop(s_ref, "ro.product.marketname");
     let brand = get_prop(s_ref, "ro.product.brand");
-    let hyperos_incremental = get_prop(s_ref, "ro.mi.os.version.incremental");
-    let hyperos_name = get_prop(s_ref, "ro.miui.ui.version.name");
     let security_patch = get_prop(s_ref, "ro.build.version.security_patch");
 
     if android_ver.is_empty() && model.is_empty() && device.is_empty() && market_name.is_empty() {
@@ -414,19 +741,7 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
         "-".to_string()
     };
 
-    let (hyperos_ver, hyperos_short) = if !hyperos_incremental.is_empty() {
-        let re = Regex::new(r"^(\d+\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)").unwrap();
-        let short = if let Some(caps) = re.captures(&hyperos_incremental) {
-            caps[1].to_string()
-        } else {
-            hyperos_incremental.clone()
-        };
-        (hyperos_incremental, short)
-    } else if !hyperos_name.is_empty() {
-        (hyperos_name.clone(), hyperos_name)
-    } else {
-        ("-".to_string(), "-".to_string())
-    };
+    let rom = detect_rom(s_ref, &android_ver);
 
     // CPU / SoC
     let mut soc = get_prop(s_ref, "ro.soc.model");
@@ -538,8 +853,11 @@ pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
         brand: if brand.is_empty() { "-".to_string() } else { brand },
         android_ver: if android_ver.is_empty() { "-".to_string() } else { android_ver },
         security_patch: if security_patch.is_empty() { "-".to_string() } else { security_patch },
-        hyperos_version: hyperos_ver,
-        hyperos_short,
+        hyperos_version: rom.rom_version.clone(),
+        hyperos_short: rom.short_version.clone(),
+        rom_type: rom.rom_type,
+        rom_name: rom.rom_name,
+        rom_version: rom.rom_version,
         cpu: soc,
         ram: ram_str,
         storage: storage_str,
@@ -914,6 +1232,18 @@ pub fn clear_logcat(serial: Option<String>) -> Result<String, String> {
         Ok("Logcat buffer cleared".to_string())
     } else {
         Err(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_rom_types() {
+        // Test fallback when no device or empty props
+        let res = detect_rom(None, "14");
+        assert!(res.rom_type == "AOSP" || res.rom_type == "AOSP / Custom");
     }
 }
 

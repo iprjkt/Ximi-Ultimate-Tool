@@ -60,7 +60,7 @@ const I18N = {
     device_info_title: "Device Info",
     spec_model: "Model:",
     spec_codename: "Codename:",
-    spec_hyperos: "HyperOS:",
+    spec_hyperos: "ROM / OS:",
     spec_android: "Android:",
     spec_battery: "Battery:",
     no_fastboot_dev: "No Fastboot Device",
@@ -157,7 +157,7 @@ const I18N = {
     device_info_title: "Info Perangkat",
     spec_model: "Model:",
     spec_codename: "Codename:",
-    spec_hyperos: "HyperOS:",
+    spec_hyperos: "ROM / OS:",
     spec_android: "Android:",
     spec_battery: "Baterai:",
     no_fastboot_dev: "Tidak Ada Perangkat Fastboot",
@@ -416,6 +416,11 @@ function clearDeviceSpecs() {
   if (apMarket) apMarket.textContent = noDevText;
   const apCode = document.getElementById('ap-codename');
   if (apCode) apCode.textContent = '-';
+  const apRomBadge = document.getElementById('ap-rom-badge');
+  if (apRomBadge) {
+    apRomBadge.textContent = '-';
+    apRomBadge.className = 'device-rom-badge';
+  }
   const apCpu = document.getElementById('ap-cpu');
   if (apCpu) apCpu.textContent = '-';
   const apRam = document.getElementById('ap-ram');
@@ -442,19 +447,49 @@ async function loadDeviceSpecs(serial) {
       return;
     }
 
-    // Quick specs
+    const romType = specs.rom_type || 'AOSP';
+    const romName = specs.rom_name || 'AOSP';
+    const romVer = specs.rom_version && specs.rom_version !== '-' ? specs.rom_version : (specs.hyperos_version || '-');
+
+    // Quick specs (ADB View)
     document.getElementById('qs-model').textContent = specs.model && specs.model !== '-' ? specs.model : '-';
     document.getElementById('qs-codename').textContent = specs.device && specs.device !== '-' ? specs.device : '-';
-    document.getElementById('qs-hyperos').textContent = specs.hyperos_version && specs.hyperos_version !== '-' ? specs.hyperos_version : '-';
+    
+    // Quick specs ROM
+    const qsRom = document.getElementById('qs-hyperos');
+    if (qsRom) {
+      if (romType === 'HyperOS' || romType === 'MIUI') {
+        qsRom.textContent = `${romType} ${specs.hyperos_short || romVer}`;
+      } else {
+        qsRom.textContent = `${romName} (${specs.hyperos_short || romVer})`;
+      }
+    }
+
     document.getElementById('qs-android').textContent = specs.android_ver && specs.android_ver !== '-' ? specs.android_ver : '-';
     document.getElementById('qs-battery').textContent = specs.battery && specs.battery !== '-' ? specs.battery : '-';
 
     // About Phone Card (Settings View)
-    const brand = specs.brand && specs.brand !== '-' ? specs.brand : 'Xiaomi';
-    document.getElementById('ap-brand-title').textContent = `${brand} HyperOS`;
-    document.getElementById('ap-version-incremental').textContent = specs.hyperos_version && specs.hyperos_version !== '-' ? specs.hyperos_version : '-';
+    let bannerTitle = romName;
+    if (romType === 'HyperOS' || romType === 'MIUI') {
+      const brand = specs.brand && specs.brand !== '-' ? specs.brand : 'Xiaomi';
+      bannerTitle = `${brand} ${romType}`;
+    } else {
+      bannerTitle = `${romName} (AOSP)`;
+    }
+
+    document.getElementById('ap-brand-title').textContent = bannerTitle;
+    document.getElementById('ap-version-incremental').textContent = romVer;
     document.getElementById('ap-market-name').textContent = specs.market_name && specs.market_name !== '-' ? specs.market_name : (specs.model && specs.model !== '-' ? specs.model : '-');
     document.getElementById('ap-codename').textContent = specs.device && specs.device !== '-' ? specs.device : '-';
+
+    // ROM Type Badge
+    const apRomBadge = document.getElementById('ap-rom-badge');
+    if (apRomBadge) {
+      apRomBadge.textContent = romType;
+      const badgeCls = romType.toLowerCase().replace(/[^a-z0-9]/g, '');
+      apRomBadge.className = `device-rom-badge badge-${badgeCls}`;
+    }
+
     document.getElementById('ap-cpu').textContent = specs.cpu && specs.cpu !== '-' ? specs.cpu : '-';
     document.getElementById('ap-ram').textContent = specs.ram && specs.ram !== '-' ? specs.ram : '-';
     document.getElementById('ap-storage').textContent = specs.storage && specs.storage !== '-' ? specs.storage : '-';
