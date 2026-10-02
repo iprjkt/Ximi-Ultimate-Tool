@@ -103,91 +103,35 @@ pub fn format_bytes(bytes: u64) -> String {
 }
 
 #[tauri::command]
-pub fn pick_file(
+pub async fn pick_file(
     title: Option<String>,
     filter_name: Option<String>,
     filter_pattern: Option<String>,
 ) -> Result<Option<String>, String> {
-    if which::which("zenity").is_ok() {
-        let mut cmd = Command::new("zenity");
-        cmd.arg("--file-selection");
-        if let Some(ref t) = title {
-            cmd.arg(format!("--title={}", t));
-        }
-        if let (Some(ref name), Some(ref pat)) = (filter_name.as_ref(), filter_pattern.as_ref()) {
-            cmd.arg(format!("--file-filter={} | {}", name, pat));
-            cmd.arg("--file-filter=All files | *");
-        }
-        if let Ok(out) = cmd.output() {
-            if out.status.success() {
-                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Ok(Some(path));
-                }
-            }
-            return Ok(None);
+    let mut dialog = rfd::AsyncFileDialog::new();
+    if let Some(ref t) = title {
+        dialog = dialog.set_title(t);
+    }
+    if let (Some(name), Some(pat)) = (filter_name, filter_pattern) {
+        let clean_patterns: Vec<&str> = pat
+            .split(&[',', ';', ' '][..])
+            .map(|s| s.trim_start_matches("*."))
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !clean_patterns.is_empty() {
+            dialog = dialog.add_filter(&name, &clean_patterns);
         }
     }
-
-    if which::which("kdialog").is_ok() {
-        let mut cmd = Command::new("kdialog");
-        cmd.arg("--getopenfilename");
-        cmd.arg(".");
-        if let Some(ref pat) = filter_pattern {
-            cmd.arg(pat);
-        }
-        if let Some(ref t) = title {
-            cmd.arg(format!("--title={}", t));
-        }
-        if let Ok(out) = cmd.output() {
-            if out.status.success() {
-                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Ok(Some(path));
-                }
-            }
-            return Ok(None);
-        }
-    }
-
-    Err("No compatible file chooser found (please install zenity or kdialog)".to_string())
+    let res = dialog.pick_file().await;
+    Ok(res.map(|f| f.path().to_string_lossy().to_string()))
 }
 
 #[tauri::command]
-pub fn pick_folder(title: Option<String>) -> Result<Option<String>, String> {
-    if which::which("zenity").is_ok() {
-        let mut cmd = Command::new("zenity");
-        cmd.arg("--file-selection").arg("--directory");
-        if let Some(ref t) = title {
-            cmd.arg(format!("--title={}", t));
-        }
-        if let Ok(out) = cmd.output() {
-            if out.status.success() {
-                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Ok(Some(path));
-                }
-            }
-            return Ok(None);
-        }
+pub async fn pick_folder(title: Option<String>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::AsyncFileDialog::new();
+    if let Some(ref t) = title {
+        dialog = dialog.set_title(t);
     }
-
-    if which::which("kdialog").is_ok() {
-        let mut cmd = Command::new("kdialog");
-        cmd.arg("--getexistingdirectory");
-        if let Some(ref t) = title {
-            cmd.arg(format!("--title={}", t));
-        }
-        if let Ok(out) = cmd.output() {
-            if out.status.success() {
-                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Ok(Some(path));
-                }
-            }
-            return Ok(None);
-        }
-    }
-
-    Err("No compatible folder chooser found (please install zenity or kdialog)".to_string())
+    let res = dialog.pick_folder().await;
+    Ok(res.map(|f| f.path().to_string_lossy().to_string()))
 }

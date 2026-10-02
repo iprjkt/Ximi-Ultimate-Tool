@@ -43,6 +43,7 @@ pub fn run() {
             fastboot::flash_partition,
             fastboot::boot_image,
             fastboot::parse_rom_directory,
+            fastboot::flash_rom,
             fastboot::reboot_fastboot,
             // MT Explorer Commands
             explorer::list_pc_directory,

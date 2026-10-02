@@ -760,63 +760,212 @@ async function selectAndInstallApk() {
   }
 }
 
-function setupApkDragDrop() {
-  const dropzone = document.getElementById('apk-dropzone');
-  if (!dropzone) return;
+// Fastboot Flasher Helper Functions
+function appendFastbootLog(line) {
+  const consoleElem = document.getElementById('fastboot-terminal-log');
+  if (!consoleElem) return;
+  if (consoleElem.textContent.includes('[IDLE] Waiting for fastboot')) {
+    consoleElem.textContent = '';
+  }
+  consoleElem.textContent += `${line}\n`;
+  consoleElem.scrollTop = consoleElem.scrollHeight;
+}
 
-  // Click on dropzone or Install APK button
-  dropzone.addEventListener('click', selectAndInstallApk);
+function autoSelectPartitionChip(partitionName) {
+  if (!partitionName) return;
+  const clean = partitionName.toLowerCase().trim();
+  let matched = false;
+  document.querySelectorAll('.p-chip:not(.custom)').forEach(chip => {
+    if (chip.getAttribute('data-p').toLowerCase() === clean) {
+      document.querySelectorAll('.p-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      AppState.currentPartition = chip.getAttribute('data-p');
+      matched = true;
+    }
+  });
+  if (!matched) {
+    AppState.currentPartition = clean;
+    const customChip = document.getElementById('chip-custom-partition');
+    if (customChip) {
+      document.querySelectorAll('.p-chip').forEach(c => c.classList.remove('active'));
+      customChip.textContent = clean;
+      customChip.classList.add('active');
+    }
+  }
+}
+
+let currentRomPartitions = [];
+
+async function handleRomDirectorySelected(folderPath) {
+  if (!folderPath) return;
+  document.getElementById('rom-folder-path').value = folderPath;
+  appendFastbootLog(`[INFO] Parsing Fastboot ROM folder: ${folderPath}...`);
+
+  try {
+    const romInfo = await invoke('parse_rom_directory', { folderPath });
+    if (!romInfo) return;
+
+    // 1. Populate Script Select Dropdown
+    const scriptSelect = document.getElementById('rom-script-select');
+    if (scriptSelect && romInfo.scripts && romInfo.scripts.length > 0) {
+      scriptSelect.innerHTML = '';
+      romInfo.scripts.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        let label = s;
+        if (s.startsWith('flash_all.sh') || s.startsWith('flash_all.bat')) {
+          label = `${s} (Clean All - Recommended)`;
+        } else if (s.includes('except')) {
+          label = `${s} (Save User Data)`;
+        } else if (s.includes('lock')) {
+          label = `${s} (Clean All & Lock Bootloader - CAUTION)`;
+        }
+        opt.textContent = label;
+        scriptSelect.appendChild(opt);
+      });
+      scriptSelect.value = romInfo.default_script;
+    }
+
+    // 2. Render Partitions Table
+    currentRomPartitions = romInfo.partitions || [];
+    renderRomPartitions(currentRomPartitions);
+    appendFastbootLog(`[INFO] Loaded ${currentRomPartitions.length} partitions from ROM successfully!`);
+  } catch (err) {
+    appendFastbootLog(`[ERROR] Failed to parse ROM: ${err}`);
+  }
+}
+
+function renderRomPartitions(partitions) {
+  const tbody = document.getElementById('rom-partitions-tbody');
+  if (!tbody) return;
+
+  if (!partitions || partitions.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No partitions found in this ROM</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  partitions.forEach((item, idx) => {
+    const tr = document.createElement('tr');
+    const isDangerous = item.is_dangerous;
+    const riskBadge = isDangerous
+      ? `<span class="badge badge-danger">Dangerous</span>`
+      : `<span class="badge badge-safe">Safe</span>`;
+
+    tr.innerHTML = `
+      <td width="35">
+        <input type="checkbox" class="rom-part-check" data-partition="${item.partition}" data-index="${idx}" ${isDangerous ? '' : 'checked'}>
+      </td>
+      <td class="font-bold ${isDangerous ? 'text-danger' : ''}">${item.partition}</td>
+      <td class="font-mono text-secondary">${item.image_file}</td>
+      <td width="90">${riskBadge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function setupGlobalDragDrop() {
+  const dropzone = document.getElementById('apk-dropzone');
+  if (dropzone) {
+    dropzone.addEventListener('click', selectAndInstallApk);
+
+    // HTML5 Drag & Drop on APK dropzone
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('drag-active');
+    });
+
+    dropzone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('drag-active');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('drag-active');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        const p = file.path || file.name;
+        if (p && p.toLowerCase().endsWith('.apk')) {
+          installApkFile(p);
+        }
+      }
+    });
+  }
+
   const btnInstall = document.getElementById('btn-install-apk');
   if (btnInstall) {
     btnInstall.addEventListener('click', selectAndInstallApk);
   }
 
-  // HTML5 Drag & Drop
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropzone.classList.add('drag-active');
-  });
-
-  dropzone.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropzone.classList.remove('drag-active');
-  });
-
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropzone.classList.remove('drag-active');
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      const p = file.path || file.name;
-      if (p && p.toLowerCase().endsWith('.apk')) {
-        installApkFile(p);
-      }
-    }
-  });
-
-  // Tauri v2 Native Window Drag & Drop
+  // Tauri v2 Native Window Drag & Drop (Context-aware)
   if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
     window.__TAURI__.event.listen('tauri://drag-enter', () => {
-      dropzone.classList.add('drag-active');
+      const activeView = document.querySelector('.view.active')?.id;
+      if (activeView === 'view-adb' && dropzone) {
+        dropzone.classList.add('drag-active');
+      }
     });
 
     window.__TAURI__.event.listen('tauri://drag-leave', () => {
-      dropzone.classList.remove('drag-active');
+      if (dropzone) dropzone.classList.remove('drag-active');
     });
 
-    window.__TAURI__.event.listen('tauri://drag-drop', (event) => {
-      dropzone.classList.remove('drag-active');
+    window.__TAURI__.event.listen('tauri://drag-drop', async (event) => {
+      if (dropzone) dropzone.classList.remove('drag-active');
       const paths = event.payload && event.payload.paths ? event.payload.paths : [];
-      if (paths.length > 0) {
-        const apkFile = paths.find(p => p.toLowerCase().endsWith('.apk')) || paths[0];
-        if (apkFile && apkFile.toLowerCase().endsWith('.apk')) {
-          installApkFile(apkFile);
+      if (paths.length === 0) return;
+
+      const activeView = document.querySelector('.view.active')?.id || 'view-adb';
+      const firstPath = paths[0];
+      const lower = firstPath.toLowerCase();
+
+      // 1. FASTBOOT FLASHER TAB
+      if (activeView === 'view-fastboot') {
+        if (lower.endsWith('.img') || lower.endsWith('.bin')) {
+          // Switch to single partition tab and load image
+          document.getElementById('tab-flash-single')?.click();
+          const imgInput = document.getElementById('single-image-path');
+          if (imgInput) imgInput.value = firstPath;
+          const fname = firstPath.split('/').pop().toLowerCase();
+          const cleanName = fname.replace('.img', '').replace('.bin', '').replace('_ab', '').replace('_a', '').replace('_b', '');
+          autoSelectPartitionChip(cleanName);
+          appendFastbootLog(`[INFO] Loaded partition image: ${firstPath}`);
         } else {
-          alert('Please drop an .apk package file.');
+          // It's a directory or ROM package
+          document.getElementById('tab-flash-rom')?.click();
+          await handleRomDirectorySelected(firstPath);
         }
+        return;
+      }
+
+      // 2. ADB & DEBLOAT TAB
+      if (activeView === 'view-adb') {
+        const apkFile = paths.find(p => p.toLowerCase().endsWith('.apk'));
+        if (apkFile) {
+          installApkFile(apkFile);
+        } else if (lower.endsWith('.img') || lower.endsWith('.bin')) {
+          // User dropped an image, switch to Fastboot Flasher!
+          document.querySelector('.dock-item[data-view="view-fastboot"]')?.click();
+          document.getElementById('tab-flash-single')?.click();
+          const imgInput = document.getElementById('single-image-path');
+          if (imgInput) imgInput.value = firstPath;
+          appendFastbootLog(`[INFO] Switched to Fastboot Flasher and loaded image: ${firstPath}`);
+        } else {
+          // Could be a ROM directory dropped here
+          document.querySelector('.dock-item[data-view="view-fastboot"]')?.click();
+          document.getElementById('tab-flash-rom')?.click();
+          await handleRomDirectorySelected(firstPath);
+        }
+        return;
+      }
+
+      // 3. OTHER VIEWS FALLBACK
+      if (lower.endsWith('.apk')) {
+        installApkFile(firstPath);
       }
     });
   }
@@ -1187,8 +1336,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Setup Sideload Drag & Drop and Live Logcat Modal
-  setupApkDragDrop();
+  // Setup Smart Drag & Drop and Live Logcat Modal
+  setupGlobalDragDrop();
   setupLogcatModal();
 
   // 10. MT Manager Transfer & Navigation
@@ -1426,6 +1575,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (path) {
           document.getElementById('single-image-path').value = path;
+          const fname = path.split('/').pop().toLowerCase();
+          const cleanName = fname.replace('.img', '').replace('.bin', '').replace('_ab', '').replace('_a', '').replace('_b', '');
+          autoSelectPartitionChip(cleanName);
+          appendFastbootLog(`[INFO] Loaded partition image: ${path}`);
         }
       } catch (e) {
         console.error('Pick image error:', e);
@@ -1441,22 +1594,7 @@ document.addEventListener('DOMContentLoaded', () => {
           title: 'Select Extracted Fastboot ROM Directory'
         });
         if (path) {
-          document.getElementById('rom-folder-path').value = path;
-          try {
-            const romInfo = await invoke('parse_rom_directory', { folderPath: path });
-            const scriptSelect = document.getElementById('rom-script-select');
-            if (scriptSelect && romInfo && romInfo.scripts) {
-              scriptSelect.innerHTML = '';
-              romInfo.scripts.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                scriptSelect.appendChild(opt);
-              });
-            }
-          } catch (pe) {
-            console.warn('ROM parse warning:', pe);
-          }
+          await handleRomDirectorySelected(path);
         }
       } catch (e) {
         console.error('Pick ROM folder error:', e);
@@ -1464,6 +1602,130 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Single Partition Flashing
+  const btnFlashSingle = document.getElementById('btn-flash-single');
+  if (btnFlashSingle) {
+    btnFlashSingle.addEventListener('click', async () => {
+      const filePath = document.getElementById('single-image-path').value.trim();
+      const partition = AppState.currentPartition || 'boot';
+      const disableVerity = document.getElementById('check-vbmeta-flags').checked;
+
+      if (!filePath) {
+        alert('Please select or drag an image file (.img) first.');
+        return;
+      }
+
+      if (!confirm(`Flash image to partition "${partition}"?`)) return;
+
+      appendFastbootLog(`[FLASH] Flashing ${partition} with ${filePath}...`);
+      const progressBar = document.getElementById('fastboot-progress-bar');
+      if (progressBar) progressBar.style.width = '30%';
+
+      try {
+        const res = await invoke('flash_partition', {
+          serial: AppState.currentFastbootDevice,
+          partition,
+          filePath,
+          disableVerity
+        });
+        appendFastbootLog(res);
+        if (progressBar) progressBar.style.width = '100%';
+        alert(`Successfully flashed ${partition}!`);
+      } catch (e) {
+        appendFastbootLog(`[ERROR] ${e}`);
+        alert(`Flash failed: ${e}`);
+      }
+    });
+  }
+
+  // Temporarily Boot Image
+  const btnBootImg = document.getElementById('btn-boot-image');
+  if (btnBootImg) {
+    btnBootImg.addEventListener('click', async () => {
+      const filePath = document.getElementById('single-image-path').value.trim();
+      if (!filePath) {
+        alert('Please select an image file (.img) first.');
+        return;
+      }
+
+      appendFastbootLog(`[BOOT] Temporarily booting image: ${filePath}...`);
+      try {
+        const res = await invoke('boot_image', {
+          serial: AppState.currentFastbootDevice,
+          filePath
+        });
+        appendFastbootLog(res);
+        alert('Image booted successfully!');
+      } catch (e) {
+        appendFastbootLog(`[ERROR] ${e}`);
+        alert(`Boot failed: ${e}`);
+      }
+    });
+  }
+
+  // Full Fastboot ROM Flashing
+  const btnFlashRom = document.getElementById('btn-flash-rom');
+  if (btnFlashRom) {
+    btnFlashRom.addEventListener('click', async () => {
+      const folderPath = document.getElementById('rom-folder-path').value.trim();
+      if (!folderPath) {
+        alert('Please select or drag a Fastboot ROM directory first.');
+        return;
+      }
+
+      const scriptSelect = document.getElementById('rom-script-select');
+      const scriptName = scriptSelect ? scriptSelect.value : 'flash_all.sh';
+
+      const excludedPartitions = [];
+      document.querySelectorAll('.rom-part-check').forEach(cb => {
+        if (!cb.checked) {
+          excludedPartitions.push(cb.getAttribute('data-partition'));
+        }
+      });
+
+      let confirmMsg = `Are you sure you want to flash Full Fastboot ROM with script "${scriptName}"?`;
+      if (excludedPartitions.length > 0) {
+        confirmMsg += `\n\nNote: ${excludedPartitions.length} partitions are excluded and will be SKIPPED:\n${excludedPartitions.slice(0, 4).join(', ')}${excludedPartitions.length > 4 ? '...' : ''}`;
+      }
+      if (scriptName.includes('lock')) {
+        confirmMsg += `\n\n⚠️ CAUTION: THIS SCRIPT WILL LOCK YOUR BOOTLOADER!`;
+      }
+
+      if (!confirm(confirmMsg)) return;
+
+      appendFastbootLog(`[START] Initiating Full ROM flash with script: ${scriptName}...`);
+      const progressBar = document.getElementById('fastboot-progress-bar');
+      if (progressBar) progressBar.style.width = '5%';
+
+      try {
+        const res = await invoke('flash_rom', {
+          serial: AppState.currentFastbootDevice,
+          folderPath,
+          scriptName,
+          excludedPartitions
+        });
+        appendFastbootLog(`[SUCCESS] ${res}`);
+        if (progressBar) progressBar.style.width = '100%';
+        alert('Full ROM flashed successfully!');
+      } catch (err) {
+        appendFastbootLog(`[ERROR] ${err}`);
+        alert(`Flashing error: ${err}`);
+      }
+    });
+  }
+
+  // Partition exclusion select-all toggle
+  const romCheckAll = document.getElementById('rom-check-all');
+  if (romCheckAll) {
+    romCheckAll.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      document.querySelectorAll('.rom-part-check').forEach(cb => {
+        cb.checked = isChecked;
+      });
+    });
+  }
+
+  // Fastboot Reboot
   const btnFastbootReboot = document.getElementById('btn-fastboot-reboot');
   if (btnFastbootReboot) {
     btnFastbootReboot.addEventListener('click', async () => {
@@ -1471,12 +1733,24 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           await invoke('reboot_fastboot', {
             serial: AppState.currentFastbootDevice,
-            target: 'system'
+            mode: 'system'
           });
         } catch (e) {
           alert(`Reboot failed: ${e}`);
         }
       }
+    });
+  }
+
+  // Fastboot progress & log events from Rust backend
+  if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
+    window.__TAURI__.event.listen('fastboot-log', (event) => {
+      if (event.payload) appendFastbootLog(event.payload);
+    });
+    window.__TAURI__.event.listen('fastboot-progress', (event) => {
+      const pct = event.payload;
+      const bar = document.getElementById('fastboot-progress-bar');
+      if (bar) bar.style.width = `${pct}%`;
     });
   }
 

@@ -24,3 +24,4 @@ regex = "1.10"
 which = "6.0"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 open = "5.3"
+rfd = "0.17.2"

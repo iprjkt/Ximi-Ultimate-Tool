@@ -1866,3 +1866,28 @@ body.theme-light ::-webkit-scrollbar-thumb {
   font-family: monospace;
 }
 
+.badge-danger {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+}
+
+.badge-safe {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.text-danger {
+  color: #EF4444 !important;
+}
+
+
