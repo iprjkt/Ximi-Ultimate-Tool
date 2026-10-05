@@ -1,8 +1,15 @@
-use crate::utils::{detect_adb, run_adb_cmd};
+use crate::utils::{
+    blocking, detect_adb, new_task_id, run_adb, run_adb_streaming, sh_quote, std_command,
+    tokio_command, SerialGuard,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DeviceInfo {
@@ -346,45 +353,94 @@ pub fn get_curated_bloatware() -> Vec<BloatwareItem> {
     ]
 }
 
-fn get_prop(serial: Option<&str>, prop: &str) -> String {
-    let mut args = Vec::new();
-    if let Some(s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "getprop", prop]);
-    if let Ok((0, out, _)) = run_adb_cmd(&args) {
-        out.trim().to_string()
+fn curated_db() -> &'static Vec<BloatwareItem> {
+    static DB: OnceLock<Vec<BloatwareItem>> = OnceLock::new();
+    DB.get_or_init(get_curated_bloatware)
+}
+
+/// Only plain Android package names may reach `adb shell`, which re-parses its arguments.
+fn validate_package(pkg: &str) -> Result<(), String> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"^[A-Za-z0-9_][A-Za-z0-9_.]*$").unwrap());
+    if re.is_match(pkg) {
+        Ok(())
     } else {
-        String::new()
+        Err(format!("Invalid package name: {}", pkg))
     }
 }
 
-#[tauri::command]
-pub fn get_adb_devices() -> Result<Vec<DeviceInfo>, String> {
-    let (code, stdout, stderr) = run_adb_cmd(&["devices", "-l"])?;
-    if code != 0 {
-        return Err(format!("adb devices failed: {}", stderr));
-    }
+fn non_empty(s: &str) -> Option<&str> {
+    let t = s.trim();
+    if t.is_empty() { None } else { Some(t) }
+}
 
+// ---------------------------------------------------------------------------
+// Devices
+// ---------------------------------------------------------------------------
+
+fn parse_devices(stdout: &str) -> Vec<DeviceInfo> {
     let mut devices = Vec::new();
-    for line in stdout.lines().skip(1) {
+    for line in stdout.lines() {
         let line = line.trim();
-        if line.is_empty() {
+        if line.is_empty() || line.starts_with("List of devices") || line.starts_with('*') {
             continue;
         }
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 2 {
-            let serial = parts[0].to_string();
-            let state = parts[1].to_string();
-            let info = if parts.len() > 2 {
-                parts[2..].join(" ")
-            } else {
-                String::new()
-            };
-            devices.push(DeviceInfo { serial, state, info });
+            devices.push(DeviceInfo {
+                serial: parts[0].to_string(),
+                state: parts[1].to_string(),
+                info: parts[2..].join(" "),
+            });
         }
     }
-    Ok(devices)
+    devices
+}
+
+#[tauri::command]
+pub async fn get_adb_devices() -> Result<Vec<DeviceInfo>, String> {
+    blocking(|| {
+        let (code, stdout, stderr) = run_adb(None, &["devices", "-l"])?;
+        if code != 0 {
+            return Err(format!("adb devices failed: {}", stderr.trim()));
+        }
+        Ok(parse_devices(&stdout))
+    })
+    .await
+}
+
+// ---------------------------------------------------------------------------
+// Device specs (one getprop dump + one batched shell call)
+// ---------------------------------------------------------------------------
+
+/// Parse `adb shell getprop` output: `[ro.product.model]: [23049PCD8G]`.
+pub fn parse_getprop(out: &str) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for line in out.lines() {
+        let line = line.trim();
+        if let Some((k, v)) = line.split_once("]: [") {
+            let key = k.trim_start_matches('[');
+            let val = v.trim_end_matches(']');
+            if !val.is_empty() {
+                map.insert(key.to_string(), val.to_string());
+            }
+        }
+    }
+    map
+}
+
+fn prop<'a>(p: &'a HashMap<String, String>, key: &str) -> &'a str {
+    p.get(key).map(String::as_str).unwrap_or("")
+}
+
+fn first_prop<'a>(p: &'a HashMap<String, String>, keys: &[&str]) -> &'a str {
+    for k in keys {
+        let v = prop(p, k);
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    ""
 }
 
 #[derive(Debug, Clone)]
@@ -395,855 +451,910 @@ pub struct RomDetails {
     pub short_version: String,
 }
 
-pub fn detect_rom(s_ref: Option<&str>, android_ver: &str) -> RomDetails {
-    // 1. Xiaomi HyperOS Check
-    let hyperos_incremental = get_prop(s_ref, "ro.mi.os.version.incremental");
-    let hyperos_name = get_prop(s_ref, "ro.mi.os.version.name");
-    let miui_ui_ver = get_prop(s_ref, "ro.miui.ui.version.name");
-    let miui_ver_code = get_prop(s_ref, "ro.miui.version.code_time");
+/// (rom type, display name, props holding the version, separator that cuts the short version)
+const CUSTOM_ROMS: &[(&str, &str, &[&str], Option<char>)] = &[
+    ("LineageOS", "LineageOS", &["ro.lineage.display.version", "ro.lineage.version", "ro.lineage.build.version"], Some('-')),
+    ("Pixel Experience", "Pixel Experience", &["ro.pixelexperience.version", "ro.pe.version"], Some('-')),
+    ("Evolution X", "Evolution X", &["ro.evolution.version", "ro.evo.version"], Some('_')),
+    ("crDroid", "crDroid Android", &["ro.crdroid.version", "ro.cr.version"], None),
+    ("ArrowOS", "ArrowOS", &["ro.arrow.version"], Some('_')),
+    ("Paranoid Android", "Paranoid Android", &["ro.aospa.version", "ro.pa.version"], None),
+    ("RisingOS", "RisingOS", &["ro.rising.version"], Some('-')),
+    ("DerpFest", "DerpFest", &["ro.derp.version"], None),
+    ("Project Elixir", "Project Elixir", &["ro.elixir.version"], None),
+    ("PixelOS", "PixelOS", &["ro.pixelos.version"], None),
+    ("BlissROM", "BlissROM", &["ro.bliss.version"], None),
+    ("Havoc-OS", "Havoc-OS", &["ro.havoc.version"], None),
+    ("SparkOS", "SparkOS", &["ro.spark.version"], None),
+    ("CherishOS", "CherishOS", &["ro.cherish.version"], None),
+    ("CalyxOS", "CalyxOS", &["ro.calyxos.version"], None),
+];
 
-    if !hyperos_incremental.is_empty() || (!hyperos_name.is_empty() && hyperos_name.contains("OS")) || miui_ui_ver == "V816" {
-        let full_ver = if !hyperos_incremental.is_empty() {
-            hyperos_incremental.clone()
-        } else if !hyperos_name.is_empty() {
-            hyperos_name.clone()
-        } else {
-            "OS1.0".to_string()
-        };
-        let re = Regex::new(r"^(\d+\.\d+\.\d+\.\d+|\d+\.\d+\.\d+)").unwrap();
-        let short = if let Some(caps) = re.captures(&full_ver) {
-            caps[1].to_string()
-        } else {
-            full_ver.clone()
-        };
-        return RomDetails {
-            rom_type: "HyperOS".to_string(),
-            rom_name: "Xiaomi HyperOS".to_string(),
-            rom_version: full_ver,
-            short_version: short,
-        };
-    }
-
-    // 2. Xiaomi MIUI Check
-    if !miui_ui_ver.is_empty() || !miui_ver_code.is_empty() {
-        let inc = get_prop(s_ref, "ro.build.version.incremental");
-        let full_ver = if !inc.is_empty() {
-            inc
-        } else if !miui_ui_ver.is_empty() {
-            miui_ui_ver.clone()
-        } else {
-            "MIUI".to_string()
-        };
-        return RomDetails {
-            rom_type: "MIUI".to_string(),
-            rom_name: if !miui_ui_ver.is_empty() { format!("Xiaomi MIUI {}", miui_ui_ver) } else { "Xiaomi MIUI".to_string() },
-            rom_version: full_ver.clone(),
-            short_version: full_ver,
-        };
-    }
-
-    // 3. Known AOSP Custom ROM Props
-    // LineageOS
-    let lineage_disp = get_prop(s_ref, "ro.lineage.display.version");
-    let lineage_ver = get_prop(s_ref, "ro.lineage.version");
-    let lineage_build = get_prop(s_ref, "ro.lineage.build.version");
-    if !lineage_disp.is_empty() || !lineage_ver.is_empty() || !lineage_build.is_empty() {
-        let v = if !lineage_disp.is_empty() {
-            lineage_disp
-        } else if !lineage_ver.is_empty() {
-            lineage_ver
-        } else {
-            lineage_build
-        };
-        return RomDetails {
-            rom_type: "LineageOS".to_string(),
-            rom_name: "LineageOS".to_string(),
-            short_version: v.split('-').next().unwrap_or(&v).to_string(),
-            rom_version: v,
-        };
-    }
-
-    // Pixel Experience
-    let pe_ver = get_prop(s_ref, "ro.pixelexperience.version");
-    let pe_ver2 = get_prop(s_ref, "ro.pe.version");
-    if !pe_ver.is_empty() || !pe_ver2.is_empty() {
-        let v = if !pe_ver.is_empty() { pe_ver } else { pe_ver2 };
-        return RomDetails {
-            rom_type: "Pixel Experience".to_string(),
-            rom_name: "Pixel Experience".to_string(),
-            short_version: v.split('-').next().unwrap_or(&v).to_string(),
-            rom_version: v,
-        };
-    }
-
-    // Evolution X
-    let evo_ver = get_prop(s_ref, "ro.evolution.version");
-    let evo_ver2 = get_prop(s_ref, "ro.evo.version");
-    if !evo_ver.is_empty() || !evo_ver2.is_empty() {
-        let v = if !evo_ver.is_empty() { evo_ver } else { evo_ver2 };
-        return RomDetails {
-            rom_type: "Evolution X".to_string(),
-            rom_name: "Evolution X".to_string(),
-            short_version: v.split('_').next().unwrap_or(&v).to_string(),
-            rom_version: v,
-        };
-    }
-
-    // crDroid
-    let cr_ver = get_prop(s_ref, "ro.crdroid.version");
-    let cr_ver2 = get_prop(s_ref, "ro.cr.version");
-    if !cr_ver.is_empty() || !cr_ver2.is_empty() {
-        let v = if !cr_ver.is_empty() { cr_ver } else { cr_ver2 };
-        return RomDetails {
-            rom_type: "crDroid".to_string(),
-            rom_name: "crDroid Android".to_string(),
-            short_version: v.clone(),
-            rom_version: v,
-        };
-    }
-
-    // ArrowOS
-    let arrow_ver = get_prop(s_ref, "ro.arrow.version");
-    if !arrow_ver.is_empty() {
-        return RomDetails {
-            rom_type: "ArrowOS".to_string(),
-            rom_name: "ArrowOS".to_string(),
-            short_version: arrow_ver.split('_').next().unwrap_or(&arrow_ver).to_string(),
-            rom_version: arrow_ver,
-        };
-    }
-
-    // Paranoid Android
-    let pa_ver = get_prop(s_ref, "ro.aospa.version");
-    let pa_ver2 = get_prop(s_ref, "ro.pa.version");
-    if !pa_ver.is_empty() || !pa_ver2.is_empty() {
-        let v = if !pa_ver.is_empty() { pa_ver } else { pa_ver2 };
-        return RomDetails {
-            rom_type: "Paranoid Android".to_string(),
-            rom_name: "Paranoid Android".to_string(),
-            short_version: v.clone(),
-            rom_version: v,
-        };
-    }
-
-    // RisingOS
-    let rising_ver = get_prop(s_ref, "ro.rising.version");
-    if !rising_ver.is_empty() {
-        return RomDetails {
-            rom_type: "RisingOS".to_string(),
-            rom_name: "RisingOS".to_string(),
-            short_version: rising_ver.split('-').next().unwrap_or(&rising_ver).to_string(),
-            rom_version: rising_ver,
-        };
-    }
-
-    // DerpFest
-    let derp_ver = get_prop(s_ref, "ro.derp.version");
-    if !derp_ver.is_empty() {
-        return RomDetails {
-            rom_type: "DerpFest".to_string(),
-            rom_name: "DerpFest".to_string(),
-            short_version: derp_ver.clone(),
-            rom_version: derp_ver,
-        };
-    }
-
-    // Project Elixir
-    let elixir_ver = get_prop(s_ref, "ro.elixir.version");
-    if !elixir_ver.is_empty() {
-        return RomDetails {
-            rom_type: "Project Elixir".to_string(),
-            rom_name: "Project Elixir".to_string(),
-            short_version: elixir_ver.clone(),
-            rom_version: elixir_ver,
-        };
-    }
-
-    // PixelOS
-    let pixelos_ver = get_prop(s_ref, "ro.pixelos.version");
-    if !pixelos_ver.is_empty() {
-        return RomDetails {
-            rom_type: "PixelOS".to_string(),
-            rom_name: "PixelOS".to_string(),
-            short_version: pixelos_ver.clone(),
-            rom_version: pixelos_ver,
-        };
-    }
-
-    // BlissROM
-    let bliss_ver = get_prop(s_ref, "ro.bliss.version");
-    if !bliss_ver.is_empty() {
-        return RomDetails {
-            rom_type: "BlissROM".to_string(),
-            rom_name: "BlissROM".to_string(),
-            short_version: bliss_ver.clone(),
-            rom_version: bliss_ver,
-        };
-    }
-
-    // Havoc-OS
-    let havoc_ver = get_prop(s_ref, "ro.havoc.version");
-    if !havoc_ver.is_empty() {
-        return RomDetails {
-            rom_type: "Havoc-OS".to_string(),
-            rom_name: "Havoc-OS".to_string(),
-            short_version: havoc_ver.clone(),
-            rom_version: havoc_ver,
-        };
-    }
-
-    // SparkOS
-    let spark_ver = get_prop(s_ref, "ro.spark.version");
-    if !spark_ver.is_empty() {
-        return RomDetails {
-            rom_type: "SparkOS".to_string(),
-            rom_name: "SparkOS".to_string(),
-            short_version: spark_ver.clone(),
-            rom_version: spark_ver,
-        };
-    }
-
-    // CherishOS
-    let cherish_ver = get_prop(s_ref, "ro.cherish.version");
-    if !cherish_ver.is_empty() {
-        return RomDetails {
-            rom_type: "CherishOS".to_string(),
-            rom_name: "CherishOS".to_string(),
-            short_version: cherish_ver.clone(),
-            rom_version: cherish_ver,
-        };
-    }
-
-    // CalyxOS
-    let calyx_ver = get_prop(s_ref, "ro.calyxos.version");
-    if !calyx_ver.is_empty() {
-        return RomDetails {
-            rom_type: "CalyxOS".to_string(),
-            rom_name: "CalyxOS".to_string(),
-            short_version: calyx_ver.clone(),
-            rom_version: calyx_ver,
-        };
-    }
-
-    // 4. Inspection of ro.build.display.id, ro.build.flavor, ro.modversion
-    let display_id = get_prop(s_ref, "ro.build.display.id");
-    let flavor = get_prop(s_ref, "ro.build.flavor");
-    let modversion = get_prop(s_ref, "ro.modversion");
-    let rom_ver_generic = get_prop(s_ref, "ro.rom.version");
-
-    let combined = format!("{} {} {} {}", display_id, flavor, modversion, rom_ver_generic).to_lowercase();
-
-    if combined.contains("lineage") {
-        let v = if !display_id.is_empty() { display_id } else { flavor };
-        return RomDetails {
-            rom_type: "LineageOS".to_string(),
-            rom_name: "LineageOS".to_string(),
-            short_version: "LineageOS".to_string(),
-            rom_version: v,
-        };
-    }
-    if combined.contains("pixel") {
-        let v = if !display_id.is_empty() { display_id } else { flavor };
-        return RomDetails {
-            rom_type: "Pixel AOSP".to_string(),
-            rom_name: "Pixel AOSP ROM".to_string(),
-            short_version: "Pixel AOSP".to_string(),
-            rom_version: v,
-        };
-    }
-    if combined.contains("evolution") {
-        let v = if !display_id.is_empty() { display_id } else { flavor };
-        return RomDetails {
-            rom_type: "Evolution X".to_string(),
-            rom_name: "Evolution X".to_string(),
-            short_version: "Evolution X".to_string(),
-            rom_version: v,
-        };
-    }
-    if combined.contains("crdroid") {
-        let v = if !display_id.is_empty() { display_id } else { flavor };
-        return RomDetails {
-            rom_type: "crDroid".to_string(),
-            rom_name: "crDroid Android".to_string(),
-            short_version: "crDroid".to_string(),
-            rom_version: v,
-        };
-    }
-    if combined.contains("graphene") {
-        let v = if !display_id.is_empty() { display_id } else { flavor };
-        return RomDetails {
-            rom_type: "GrapheneOS".to_string(),
-            rom_name: "GrapheneOS".to_string(),
-            short_version: "GrapheneOS".to_string(),
-            rom_version: v,
-        };
-    }
-
-    // 5. Fallback for pure AOSP / GSI
-    if combined.contains("aosp") || flavor.starts_with("aosp_") || display_id.starts_with("aosp_") {
-        let v = if !display_id.is_empty() {
-            display_id
-        } else {
-            format!("Android {}", android_ver)
-        };
-        return RomDetails {
-            rom_type: "AOSP".to_string(),
-            rom_name: "AOSP Pure".to_string(),
-            short_version: format!("Android {}", android_ver),
-            rom_version: v,
-        };
-    }
-
-    // If display_id is present and neither HyperOS nor MIUI
-    if !display_id.is_empty() && !display_id.contains("MIUI") {
-        return RomDetails {
-            rom_type: "AOSP / Custom".to_string(),
-            rom_name: "AOSP Custom ROM".to_string(),
-            short_version: format!("Android {}", android_ver),
-            rom_version: display_id,
-        };
-    }
-
-    // Default fallback
-    RomDetails {
-        rom_type: "AOSP".to_string(),
-        rom_name: "AOSP Android".to_string(),
-        short_version: if android_ver.is_empty() { "-".to_string() } else { format!("Android {}", android_ver) },
-        rom_version: if !display_id.is_empty() { display_id } else { "-".to_string() },
+/// `OS2.0.214.0.VOGEUXM` -> `OS2.0.214.0`, `V14.0.5.0.TKXMIXM` -> `V14.0.5.0`.
+fn short_xiaomi_version(full: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"^(OS|V)(\d+(?:\.\d+){1,3})").unwrap());
+    match re.captures(full) {
+        Some(c) => format!("{}{}", &c[1], &c[2]),
+        None => full.to_string(),
     }
 }
 
-#[tauri::command]
-pub fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
-    let s_ref = serial.as_deref();
-    if s_ref.is_none() {
-        return Err("No device specified".to_string());
+pub fn detect_rom(p: &HashMap<String, String>, android_ver: &str) -> RomDetails {
+    let hyperos_inc = prop(p, "ro.mi.os.version.incremental");
+    let hyperos_name = prop(p, "ro.mi.os.version.name");
+    let miui_ui = prop(p, "ro.miui.ui.version.name");
+    let miui_code = prop(p, "ro.miui.version.code_time");
+
+    // Xiaomi HyperOS
+    if !hyperos_inc.is_empty() || hyperos_name.starts_with("OS") || miui_ui == "V816" {
+        let full = if !hyperos_inc.is_empty() {
+            hyperos_inc.to_string()
+        } else if !hyperos_name.is_empty() {
+            hyperos_name.to_string()
+        } else {
+            "OS1.0".to_string()
+        };
+        return RomDetails {
+            rom_type: "HyperOS".into(),
+            rom_name: "Xiaomi HyperOS".into(),
+            short_version: short_xiaomi_version(&full),
+            rom_version: full,
+        };
     }
 
-    let android_ver = get_prop(s_ref, "ro.build.version.release");
-    let model = get_prop(s_ref, "ro.product.model");
-    let device = get_prop(s_ref, "ro.product.device");
-    let market_name = get_prop(s_ref, "ro.product.marketname");
-    let brand = get_prop(s_ref, "ro.product.brand");
-    let security_patch = get_prop(s_ref, "ro.build.version.security_patch");
-
-    if android_ver.is_empty() && model.is_empty() && device.is_empty() && market_name.is_empty() {
-        return Err("Device not responding or disconnected".to_string());
+    // Xiaomi MIUI
+    if !miui_ui.is_empty() || !miui_code.is_empty() {
+        let inc = prop(p, "ro.build.version.incremental");
+        let full = non_empty(inc).or(non_empty(miui_ui)).unwrap_or("MIUI").to_string();
+        let name = match miui_ui.strip_prefix('V') {
+            // "V140" -> MIUI 14, "V125" -> MIUI 12.5
+            Some(n) if n.len() >= 3 && n.chars().all(|c| c.is_ascii_digit()) => {
+                let (major, minor) = n.split_at(n.len() - 1);
+                if minor == "0" {
+                    format!("Xiaomi MIUI {}", major)
+                } else {
+                    format!("Xiaomi MIUI {}.{}", major, minor)
+                }
+            }
+            _ if !miui_ui.is_empty() => format!("Xiaomi MIUI {}", miui_ui),
+            _ => "Xiaomi MIUI".to_string(),
+        };
+        return RomDetails {
+            rom_type: "MIUI".into(),
+            rom_name: name,
+            short_version: short_xiaomi_version(&full),
+            rom_version: full,
+        };
     }
 
-    let final_market = if !market_name.is_empty() {
-        market_name
-    } else if !model.is_empty() {
-        model.clone()
-    } else if !device.is_empty() {
-        device.clone()
+    // Known custom ROM props
+    for (rtype, rname, keys, sep) in CUSTOM_ROMS {
+        let v = first_prop(p, keys);
+        if !v.is_empty() {
+            let short = match sep {
+                Some(c) => v.split(*c).next().unwrap_or(v).to_string(),
+                None => v.to_string(),
+            };
+            return RomDetails {
+                rom_type: rtype.to_string(),
+                rom_name: rname.to_string(),
+                short_version: short,
+                rom_version: v.to_string(),
+            };
+        }
+    }
+
+    // Generic inspection of build strings
+    let display_id = prop(p, "ro.build.display.id");
+    let flavor = prop(p, "ro.build.flavor");
+    let combined = format!(
+        "{} {} {} {}",
+        display_id,
+        flavor,
+        prop(p, "ro.modversion"),
+        prop(p, "ro.rom.version")
+    )
+    .to_lowercase();
+    let build = non_empty(display_id).or(non_empty(flavor)).unwrap_or("-").to_string();
+
+    for (needle, rtype, rname) in [
+        ("lineage", "LineageOS", "LineageOS"),
+        ("evolution", "Evolution X", "Evolution X"),
+        ("crdroid", "crDroid", "crDroid Android"),
+        ("graphene", "GrapheneOS", "GrapheneOS"),
+    ] {
+        if combined.contains(needle) {
+            return RomDetails {
+                rom_type: rtype.into(),
+                rom_name: rname.into(),
+                short_version: rtype.into(),
+                rom_version: build,
+            };
+        }
+    }
+
+    let android_short = if android_ver.is_empty() { "-".to_string() } else { format!("Android {}", android_ver) };
+
+    if combined.contains("aosp") || flavor.starts_with("aosp_") {
+        return RomDetails {
+            rom_type: "AOSP".into(),
+            rom_name: "AOSP Pure".into(),
+            short_version: android_short,
+            rom_version: build,
+        };
+    }
+    if !display_id.is_empty() && !display_id.contains("MIUI") {
+        return RomDetails {
+            rom_type: "AOSP / Custom".into(),
+            rom_name: "AOSP Custom ROM".into(),
+            short_version: android_short,
+            rom_version: display_id.to_string(),
+        };
+    }
+    RomDetails {
+        rom_type: "AOSP".into(),
+        rom_name: "AOSP Android".into(),
+        short_version: android_short,
+        rom_version: build,
+    }
+}
+
+/// Marketing label for installed RAM. `MemTotal` is always a little below the physical size.
+pub fn ram_label(mem_total_kb: u64) -> String {
+    let gib = mem_total_kb as f64 / 1_048_576.0;
+    const SIZES: [f64; 12] = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 18.0, 24.0, 32.0];
+    for s in SIZES {
+        if gib <= s * 1.02 {
+            return format!("{} GB", s);
+        }
+    }
+    format!("{:.0} GB", gib.ceil())
+}
+
+/// "used / advertised" storage from `df -k /data` numbers.
+pub fn storage_label(total_kb: u64, used_kb: u64) -> String {
+    let total_gib = total_kb as f64 / 1_048_576.0;
+    let used_gib = used_kb as f64 / 1_048_576.0;
+    const SIZES: [u32; 9] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];
+    let advertised = SIZES
+        .iter()
+        .find(|s| total_gib <= **s as f64)
+        .map(|s| *s as f64)
+        .unwrap_or(total_gib.ceil());
+    let adv = if advertised >= 1024.0 {
+        format!("{} TB", advertised / 1024.0)
     } else {
-        "-".to_string()
+        format!("{} GB", advertised)
     };
+    format!("{:.1} GB / {}", used_gib, adv)
+}
 
-    let rom = detect_rom(s_ref, &android_ver);
+/// Parse `df -k /data` (tolerates wrapped lines): returns (total_kb, used_kb).
+pub fn parse_df(out: &str) -> Option<(u64, u64)> {
+    let mut lines = out.lines().filter(|l| !l.trim().is_empty());
+    let header = lines.next()?;
+    if !header.to_lowercase().contains("filesystem") && !header.to_lowercase().contains("size") {
+        return None;
+    }
+    let tokens: Vec<&str> = lines.flat_map(|l| l.split_whitespace()).collect();
+    if tokens.len() < 3 {
+        return None;
+    }
+    let total = tokens[1].parse::<u64>().ok()?;
+    let used = tokens[2].parse::<u64>().ok()?;
+    Some((total, used))
+}
 
-    // CPU / SoC
-    let mut soc = get_prop(s_ref, "ro.soc.model");
-    if soc.is_empty() {
-        soc = get_prop(s_ref, "ro.board.platform");
+const SOC_NAMES: &[(&str, &str)] = &[
+    ("sm8750", "Snapdragon 8 Elite"),
+    ("sun", "Snapdragon 8 Elite"),
+    ("sm8650", "Snapdragon 8 Gen 3"),
+    ("pineapple", "Snapdragon 8 Gen 3"),
+    ("sm8550", "Snapdragon 8 Gen 2"),
+    ("kalama", "Snapdragon 8 Gen 2"),
+    ("sm8475", "Snapdragon 8+ Gen 1"),
+    ("cape", "Snapdragon 8+ Gen 1"),
+    ("sm8450", "Snapdragon 8 Gen 1"),
+    ("taro", "Snapdragon 8 Gen 1"),
+    ("sm8350", "Snapdragon 888"),
+    ("lahaina", "Snapdragon 888"),
+    ("sm8250", "Snapdragon 865"),
+    ("kona", "Snapdragon 865"),
+    ("sm8150", "Snapdragon 855"),
+    ("msmnile", "Snapdragon 855"),
+    ("sm7325", "Snapdragon 778G"),
+    ("sm7475", "Snapdragon 7+ Gen 2"),
+    ("sm6375", "Snapdragon 695"),
+    ("sm6225", "Snapdragon 680"),
+    ("sm6115", "Snapdragon 662"),
+    ("mt6989", "Dimensity 9300"),
+    ("mt6985", "Dimensity 9200"),
+    ("mt6983", "Dimensity 9000"),
+    ("mt6895", "Dimensity 8100"),
+    ("mt6893", "Dimensity 1200"),
+    ("mt6891", "Dimensity 1100"),
+    ("mt6877", "Dimensity 900"),
+];
+
+pub fn soc_label(p: &HashMap<String, String>) -> String {
+    let model = first_prop(p, &["ro.soc.model", "ro.board.platform", "ro.hardware.chipname", "ro.hardware"]);
+    if model.is_empty() {
+        return "-".to_string();
     }
-    if soc.is_empty() {
-        soc = get_prop(s_ref, "ro.hardware");
-    }
-    if soc.is_empty() {
-        let mut cpu_args = Vec::new();
-        if let Some(s) = s_ref {
-            cpu_args.extend_from_slice(&["-s", s]);
-        }
-        cpu_args.extend_from_slice(&["shell", "cat", "/proc/cpuinfo"]);
-        if let Ok((0, cpu_out, _)) = run_adb_cmd(&cpu_args) {
-            for line in cpu_out.lines() {
-                if line.starts_with("Hardware") || line.starts_with("model name") {
-                    if let Some(val) = line.split(':').nth(1) {
-                        soc = val.trim().to_string();
-                        break;
-                    }
-                }
+    let key = model.to_lowercase();
+    match SOC_NAMES.iter().find(|(k, _)| *k == key) {
+        Some((_, name)) => format!("{} ({})", name, model.to_uppercase()),
+        None => {
+            let maker = prop(p, "ro.soc.manufacturer");
+            if maker.is_empty() || key == "qcom" {
+                model.to_string()
+            } else {
+                format!("{} {}", maker, model)
             }
         }
     }
-    if soc.is_empty() {
-        soc = "-".to_string();
-    }
+}
 
-    // RAM
-    let mut ram_str = "-".to_string();
-    let mut mem_args = Vec::new();
-    if let Some(s) = s_ref {
-        mem_args.extend_from_slice(&["-s", s]);
-    }
-    mem_args.extend_from_slice(&["shell", "cat", "/proc/meminfo"]);
-    if let Ok((0, mem_out, _)) = run_adb_cmd(&mem_args) {
-        for line in mem_out.lines() {
-            if line.contains("MemTotal:") {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    if let Ok(kb) = parts[1].parse::<f64>() {
-                        let gb = kb / (1024.0 * 1024.0);
-                        ram_str = if gb <= 4.3 {
-                            "4.0 GB".to_string()
-                        } else if gb <= 6.3 {
-                            "6.0 GB".to_string()
-                        } else if gb <= 8.5 {
-                            "8.0 GB".to_string()
-                        } else if gb <= 12.5 {
-                            "12.0 GB".to_string()
-                        } else if gb <= 16.5 {
-                            "16.0 GB".to_string()
-                        } else {
-                            format!("{:.1} GB", gb)
-                        };
-                    }
-                }
-                break;
+pub fn battery_label(out: &str) -> String {
+    let mut level = None;
+    let mut status = None;
+    let mut temp = None;
+    let mut ac = false;
+    let mut usb = false;
+    for line in out.lines() {
+        let line = line.trim();
+        if let Some((k, v)) = line.split_once(':') {
+            let v = v.trim();
+            match k.trim() {
+                "level" => level = v.parse::<u32>().ok(),
+                "status" => status = v.parse::<u32>().ok(),
+                "temperature" => temp = v.parse::<i32>().ok(),
+                "AC powered" => ac = v == "true",
+                "USB powered" => usb = v == "true",
+                _ => {}
             }
         }
     }
-
-    // Storage
-    let mut storage_str = "-".to_string();
-    let mut df_args = Vec::new();
-    if let Some(s) = s_ref {
-        df_args.extend_from_slice(&["-s", s]);
+    let Some(level) = level else { return "-".to_string() };
+    let st = match status {
+        Some(2) => "Charging",
+        Some(3) => "Discharging",
+        Some(4) => "Not charging",
+        Some(5) => "Full",
+        _ if ac || usb => "Charging",
+        _ => "",
+    };
+    let mut extra = Vec::new();
+    if !st.is_empty() {
+        extra.push(st.to_string());
     }
-    df_args.extend_from_slice(&["shell", "df -h /data"]);
-    if let Ok((0, df_out, _)) = run_adb_cmd(&df_args) {
-        let lines: Vec<&str> = df_out.lines().collect();
-        if lines.len() >= 2 {
-            let parts: Vec<&str> = lines[1].split_whitespace().collect();
-            if parts.len() >= 4 {
-                let size = parts[1];
-                let used = parts[2];
-                storage_str = format!("{} / {}", used, size);
+    if let Some(t) = temp {
+        extra.push(format!("{:.1}°C", t as f64 / 10.0));
+    }
+    if extra.is_empty() {
+        format!("{}%", level)
+    } else {
+        format!("{}% ({})", level, extra.join(", "))
+    }
+}
+
+fn dash(s: &str) -> String {
+    if s.trim().is_empty() { "-".to_string() } else { s.trim().to_string() }
+}
+
+/// Turn adb stderr into something the user can act on.
+fn explain_adb_error(stderr: &str) -> String {
+    let low = stderr.to_lowercase();
+    if low.contains("unauthorized") {
+        "Device is unauthorized — unlock the phone and accept the USB debugging prompt.".to_string()
+    } else if low.contains("offline") {
+        "Device is offline — re-plug the cable or toggle USB debugging.".to_string()
+    } else if low.contains("no devices") || low.contains("not found") {
+        "Device not found — it may have been disconnected.".to_string()
+    } else if stderr.trim().is_empty() {
+        "Device did not respond.".to_string()
+    } else {
+        stderr.trim().to_string()
+    }
+}
+
+const SPEC_BATCH: &str = "grep -m1 MemTotal /proc/meminfo; echo @@; df -k /data; echo @@; dumpsys battery";
+
+fn collect_device_specs(serial: &str) -> Result<DeviceSpecs, String> {
+    let s = Some(serial);
+    let (code, out, err) = run_adb(s, &["shell", "getprop"])?;
+    if code != 0 {
+        return Err(explain_adb_error(&err));
+    }
+    let props = parse_getprop(&out);
+    if props.is_empty() {
+        return Err(explain_adb_error(&err));
+    }
+
+    let android_ver = prop(&props, "ro.build.version.release");
+    let model = prop(&props, "ro.product.model");
+    let device = first_prop(&props, &["ro.product.device", "ro.build.product", "ro.product.name"]);
+    let market = first_prop(
+        &props,
+        &[
+            "ro.product.marketname",
+            "ro.product.vendor.marketname",
+            "ro.product.odm.marketname",
+            "ro.product.system.marketname",
+            "ro.product.model",
+            "ro.product.device",
+        ],
+    );
+    let brand = first_prop(&props, &["ro.product.brand", "ro.product.manufacturer"]);
+    let patch = prop(&props, "ro.build.version.security_patch");
+
+    let rom = detect_rom(&props, android_ver);
+
+    // RAM / storage / battery in a single round trip
+    let mut ram = "-".to_string();
+    let mut storage = "-".to_string();
+    let mut battery = "-".to_string();
+    if let Ok((_, out, _)) = run_adb(s, &["shell", SPEC_BATCH]) {
+        let mut parts = out.splitn(3, "@@");
+        if let Some(mem) = parts.next() {
+            if let Some(kb) = mem.split_whitespace().nth(1).and_then(|v| v.parse::<u64>().ok()) {
+                ram = ram_label(kb);
             }
         }
-    }
-
-    // Battery
-    let mut battery_str = "-".to_string();
-    let mut batt_args = Vec::new();
-    if let Some(s) = s_ref {
-        batt_args.extend_from_slice(&["-s", s]);
-    }
-    batt_args.extend_from_slice(&["shell", "dumpsys battery"]);
-    if let Ok((0, batt_out, _)) = run_adb_cmd(&batt_args) {
-        let mut level: Option<String> = None;
-        for line in batt_out.lines() {
-            if line.contains("level:") {
-                if let Some(l) = line.split(':').nth(1) {
-                    level = Some(l.trim().to_string());
-                }
+        if let Some(df) = parts.next() {
+            if let Some((total, used)) = parse_df(df) {
+                storage = storage_label(total, used);
             }
         }
-        if let Some(lvl) = level {
-            battery_str = format!("{}%", lvl);
+        if let Some(b) = parts.next() {
+            battery = battery_label(b);
         }
     }
 
     Ok(DeviceSpecs {
-        market_name: final_market,
-        model: if model.is_empty() { "-".to_string() } else { model },
-        device: if device.is_empty() { "-".to_string() } else { device },
-        brand: if brand.is_empty() { "-".to_string() } else { brand },
-        android_ver: if android_ver.is_empty() { "-".to_string() } else { android_ver },
-        security_patch: if security_patch.is_empty() { "-".to_string() } else { security_patch },
+        market_name: dash(market),
+        model: dash(model),
+        device: dash(device),
+        brand: dash(brand),
+        android_ver: dash(android_ver),
+        security_patch: dash(patch),
         hyperos_version: rom.rom_version.clone(),
         hyperos_short: rom.short_version.clone(),
         rom_type: rom.rom_type,
         rom_name: rom.rom_name,
         rom_version: rom.rom_version,
-        cpu: soc,
-        ram: ram_str,
-        storage: storage_str,
-        battery: battery_str,
+        cpu: soc_label(&props),
+        ram,
+        storage,
+        battery,
     })
 }
 
-#[tauri::command]
-pub fn get_packages(serial: Option<String>, filter_mode: String) -> Result<Vec<PackageItem>, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "pm", "list", "packages"]);
-    match filter_mode.as_str() {
-        "3rd" => args.push("-3"),
-        "system" => args.push("-s"),
-        "disabled" => args.push("-d"),
-        _ => {}
-    }
+type SpecCache = Mutex<HashMap<String, (Instant, DeviceSpecs)>>;
 
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code != 0 {
-        return Err(format!("Failed to list packages: {}", stderr));
-    }
+fn spec_cache() -> &'static SpecCache {
+    static C: OnceLock<SpecCache> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
-    let installed_set: std::collections::HashSet<String> = stdout
-        .lines()
-        .filter_map(|l| {
-            let trimmed = l.trim();
-            if trimmed.starts_with("package:") {
-                Some(trimmed.replace("package:", "").trim().to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let bloat_db = get_curated_bloatware();
-    let bloat_map: HashMap<String, BloatwareItem> = bloat_db
-        .into_iter()
-        .map(|b| (b.package.clone(), b))
-        .collect();
-
-    let mut result = Vec::new();
-
-    if filter_mode == "recommended" {
-        for b in get_curated_bloatware() {
-            let is_inst = installed_set.contains(&b.package);
-            result.push(PackageItem {
-                package: b.package,
-                name: b.name,
-                category: b.category,
-                risk: b.risk,
-                description: b.description,
-                is_installed: is_inst,
-            });
+/// Cached for a few seconds so the UI, fastfetch and refresh clicks don't re-query the phone.
+pub fn device_specs_cached(serial: &str, max_age: Duration) -> Result<DeviceSpecs, String> {
+    if let Some((at, specs)) = spec_cache().lock().unwrap_or_else(|p| p.into_inner()).get(serial) {
+        if at.elapsed() < max_age {
+            return Ok(specs.clone());
         }
-    } else {
-        for pkg in &installed_set {
-            if let Some(b) = bloat_map.get(pkg) {
+    }
+    let specs = collect_device_specs(serial)?;
+    spec_cache()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .insert(serial.to_string(), (Instant::now(), specs.clone()));
+    Ok(specs)
+}
+
+#[tauri::command]
+pub async fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, String> {
+    let serial = serial
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "No device specified".to_string())?;
+    blocking(move || device_specs_cached(&serial, Duration::from_secs(5))).await
+}
+
+// ---------------------------------------------------------------------------
+// Packages
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn get_packages(serial: Option<String>, filter_mode: String) -> Result<Vec<PackageItem>, String> {
+    blocking(move || {
+        let mut rest = vec!["shell", "pm", "list", "packages"];
+        match filter_mode.as_str() {
+            "3rd" => rest.push("-3"),
+            "system" => rest.push("-s"),
+            "disabled" => rest.push("-d"),
+            _ => {}
+        }
+        let (code, stdout, stderr) = run_adb(serial.as_deref(), &rest)?;
+        if code != 0 {
+            return Err(format!("Failed to list packages: {}", explain_adb_error(&stderr)));
+        }
+
+        let installed: std::collections::HashSet<&str> = stdout
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("package:"))
+            .map(str::trim)
+            .collect();
+
+        let db = curated_db();
+        let bloat_map: HashMap<&str, &BloatwareItem> = db.iter().map(|b| (b.package.as_str(), b)).collect();
+
+        let mut result: Vec<PackageItem> = Vec::new();
+        if filter_mode == "recommended" {
+            for b in db.iter().filter(|b| installed.contains(b.package.as_str())) {
                 result.push(PackageItem {
-                    package: pkg.clone(),
+                    package: b.package.clone(),
                     name: b.name.clone(),
                     category: b.category.clone(),
                     risk: b.risk.clone(),
                     description: b.description.clone(),
                     is_installed: true,
                 });
-            } else {
-                let name = pkg.split('.').last().unwrap_or(pkg).to_string();
-                result.push(PackageItem {
-                    package: pkg.clone(),
-                    name,
-                    category: "App".to_string(),
-                    risk: "Optional".to_string(),
-                    description: "-".to_string(),
-                    is_installed: true,
-                });
+            }
+        } else {
+            for pkg in &installed {
+                if let Some(b) = bloat_map.get(pkg) {
+                    result.push(PackageItem {
+                        package: pkg.to_string(),
+                        name: b.name.clone(),
+                        category: b.category.clone(),
+                        risk: b.risk.clone(),
+                        description: b.description.clone(),
+                        is_installed: true,
+                    });
+                } else {
+                    result.push(PackageItem {
+                        package: pkg.to_string(),
+                        name: pkg.rsplit('.').next().unwrap_or(pkg).to_string(),
+                        category: "App".to_string(),
+                        risk: "Optional".to_string(),
+                        description: "-".to_string(),
+                        is_installed: true,
+                    });
+                }
+            }
+        }
+        result.sort_by(|a, b| a.package.cmp(&b.package));
+        Ok(result)
+    })
+    .await
+}
+
+fn pm_action(
+    serial: Option<String>,
+    package: String,
+    rest: Vec<&'static str>,
+    ok_marker: &'static [&'static str],
+    ok_msg: &'static str,
+) -> Result<String, String> {
+    validate_package(&package)?;
+    let mut args: Vec<&str> = rest;
+    args.push(&package);
+    let (code, stdout, stderr) = run_adb(serial.as_deref(), &args)?;
+    let low = stdout.to_lowercase();
+    if code == 0 && ok_marker.iter().any(|m| low.contains(m)) {
+        Ok(format!("{} {}", ok_msg, package))
+    } else {
+        Err(if stdout.trim().is_empty() { stderr } else { stdout }.trim().to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn uninstall_package(serial: Option<String>, package: String) -> Result<String, String> {
+    blocking(move || {
+        pm_action(serial, package, vec!["shell", "pm", "uninstall", "-k", "--user", "0"], &["success"], "Successfully uninstalled")
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn restore_package(serial: Option<String>, package: String) -> Result<String, String> {
+    blocking(move || {
+        pm_action(
+            serial,
+            package,
+            vec!["shell", "cmd", "package", "install-existing"],
+            &["installed", "success"],
+            "Successfully restored",
+        )
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn disable_package(serial: Option<String>, package: String) -> Result<String, String> {
+    blocking(move || {
+        pm_action(serial, package, vec!["shell", "pm", "disable-user", "--user", "0"], &["new state"], "Successfully disabled")
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn enable_package(serial: Option<String>, package: String) -> Result<String, String> {
+    blocking(move || pm_action(serial, package, vec!["shell", "pm", "enable"], &["new state"], "Successfully enabled")).await
+}
+
+#[tauri::command]
+pub async fn reboot_device(serial: Option<String>, mode: String) -> Result<String, String> {
+    blocking(move || {
+        let mut rest = vec!["reboot"];
+        match mode.as_str() {
+            "recovery" | "bootloader" | "edl" => rest.push(mode.as_str()),
+            "system" | "" => {}
+            other => return Err(format!("Unknown reboot mode: {}", other)),
+        }
+        let (code, _out, stderr) = run_adb(serial.as_deref(), &rest)?;
+        if code == 0 {
+            Ok(format!("Device rebooting to {}", mode))
+        } else {
+            Err(explain_adb_error(&stderr))
+        }
+    })
+    .await
+}
+
+// ---------------------------------------------------------------------------
+// Install / screenshot / shell
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn install_apk(
+    app: tauri::AppHandle,
+    serial: Option<String>,
+    apk_path: String,
+    task_id: Option<String>,
+) -> Result<String, String> {
+    let _guard = SerialGuard::acquire(serial.as_deref())?;
+    let id = new_task_id(task_id);
+    let (code, out) = run_adb_streaming(app, serial.as_deref(), &["install", "-r", &apk_path], id).await?;
+    if code == 0 && out.to_lowercase().contains("success") {
+        Ok("APK installed successfully!".to_string())
+    } else {
+        Err(out.trim().to_string())
+    }
+}
+
+fn screenshot_dir() -> std::path::PathBuf {
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let pictures = home.join("Pictures");
+    if pictures.is_dir() { pictures.join("Ximi Screenshots") } else { home.join("Ximi Screenshots") }
+}
+
+#[tauri::command]
+pub async fn take_screenshot(serial: Option<String>) -> Result<String, String> {
+    blocking(move || {
+        let mut cmd = std_command(&detect_adb());
+        cmd.args(crate::utils::serial_args(serial.as_deref()));
+        cmd.args(["exec-out", "screencap", "-p"]).stdin(Stdio::null());
+        let out = cmd.output().map_err(|e| format!("Failed to run adb: {}", e))?;
+        // PNG signature check: exec-out is binary-safe, anything else is an error message.
+        if !out.status.success() || out.stdout.len() < 8 || &out.stdout[1..4] != b"PNG" {
+            let msg = String::from_utf8_lossy(&out.stderr).to_string();
+            return Err(format!("Screenshot failed: {}", explain_adb_error(&msg)));
+        }
+        let dir = screenshot_dir();
+        std::fs::create_dir_all(&dir).map_err(|e| format!("Cannot create {}: {}", dir.display(), e))?;
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let path = dir.join(format!("screenshot_{}.png", ts));
+        std::fs::write(&path, &out.stdout).map_err(|e| format!("Cannot save screenshot: {}", e))?;
+        Ok(format!("Screenshot saved to {}", path.display()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn execute_shell(serial: Option<String>, command: String, root_mode: bool) -> Result<String, String> {
+    let full_cmd = if root_mode { format!("su -c {}", sh_quote(&command)) } else { command };
+    let mut cmd = tokio_command(&detect_adb());
+    cmd.args(crate::utils::serial_args(serial.as_deref()));
+    cmd.arg("shell").arg(&full_cmd).stdin(Stdio::null());
+
+    let out = match tokio::time::timeout(Duration::from_secs(60), cmd.output()).await {
+        Ok(r) => r.map_err(|e| format!("Failed to run adb: {}", e))?,
+        Err(_) => return Err("Command timed out after 60s (interactive/long-running commands are not supported).".to_string()),
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    match (stdout.trim().is_empty(), stderr.trim().is_empty()) {
+        (false, true) => Ok(stdout),
+        (false, false) => Ok(format!("{}\n{}", stdout.trim_end(), stderr)),
+        (true, false) if out.status.success() => Ok(stderr),
+        (true, false) => Err(stderr),
+        (true, true) if out.status.success() => Ok(String::new()),
+        (true, true) => Err(format!("Command exited with status {:?}", out.status.code())),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Live logcat (no console window, batched events, live filter)
+// ---------------------------------------------------------------------------
+
+struct LogcatSession {
+    child: std::process::Child,
+    filter: Arc<Mutex<String>>,
+}
+
+fn logcat_slot() -> &'static Mutex<Option<LogcatSession>> {
+    static S: OnceLock<Mutex<Option<LogcatSession>>> = OnceLock::new();
+    S.get_or_init(|| Mutex::new(None))
+}
+
+#[derive(Serialize, Clone)]
+struct LogcatBatch {
+    session: String,
+    lines: Vec<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct LogcatEnded {
+    session: String,
+}
+
+/// Kill the running logcat child (also used on app exit).
+pub fn stop_logcat_blocking() {
+    let session = logcat_slot().lock().unwrap_or_else(|p| p.into_inner()).take();
+    if let Some(mut s) = session {
+        let _ = s.child.kill();
+        let _ = s.child.wait();
+    }
+}
+
+fn read_lossy_lines<R: std::io::Read>(r: R, mut f: impl FnMut(String) -> bool) {
+    let mut reader = BufReader::new(r);
+    let mut buf = Vec::new();
+    loop {
+        buf.clear();
+        match reader.read_until(b'\n', &mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {
+                let line = String::from_utf8_lossy(&buf).trim_end_matches(['\r', '\n']).to_string();
+                if !line.is_empty() && !f(line) {
+                    break;
+                }
             }
         }
     }
-
-    result.sort_by(|a, b| a.package.cmp(&b.package));
-    Ok(result)
 }
+
+const LOGCAT_MAX_PENDING: usize = 4000;
 
 #[tauri::command]
-pub fn uninstall_package(serial: Option<String>, package: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "pm", "uninstall", "-k", "--user", "0", &package]);
-
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && stdout.contains("Success") {
-        Ok(format!("Successfully uninstalled {}", package))
-    } else {
-        Err(if stdout.trim().is_empty() { stderr } else { stdout })
-    }
-}
-
-#[tauri::command]
-pub fn restore_package(serial: Option<String>, package: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "cmd", "package", "install-existing", &package]);
-
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && (stdout.to_lowercase().contains("installed") || stdout.to_lowercase().contains("success")) {
-        Ok(format!("Successfully restored {}", package))
-    } else {
-        Err(if stdout.trim().is_empty() { stderr } else { stdout })
-    }
-}
-
-#[tauri::command]
-pub fn disable_package(serial: Option<String>, package: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "pm", "disable-user", "--user", "0", &package]);
-
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && stdout.contains("new state") {
-        Ok(format!("Successfully disabled {}", package))
-    } else {
-        Err(if stdout.trim().is_empty() { stderr } else { stdout })
-    }
-}
-
-#[tauri::command]
-pub fn enable_package(serial: Option<String>, package: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.extend_from_slice(&["shell", "pm", "enable", &package]);
-
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && stdout.contains("new state") {
-        Ok(format!("Successfully enabled {}", package))
-    } else {
-        Err(if stdout.trim().is_empty() { stderr } else { stdout })
-    }
-}
-
-#[tauri::command]
-pub fn reboot_device(serial: Option<String>, mode: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-    args.push("reboot");
-    match mode.as_str() {
-        "recovery" => args.push("recovery"),
-        "bootloader" => args.push("bootloader"),
-        "edl" => args.push("edl"),
-        _ => {}
-    }
-
-    let (code, _stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 {
-        Ok(format!("Device rebooting to {}", mode))
-    } else {
-        Err(stderr)
-    }
-}
-
-#[tauri::command]
-pub fn install_apk(serial: Option<String>, apk_path: String) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        if !s.trim().is_empty() {
-            args.extend_from_slice(&["-s", s.trim()]);
-        }
-    }
-    args.extend_from_slice(&["install", "-r", &apk_path]);
-
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 && (stdout.to_lowercase().contains("success") || stderr.to_lowercase().contains("success")) {
-        Ok("APK installed successfully!".to_string())
-    } else {
-        let msg = if !stdout.trim().is_empty() { stdout } else { stderr };
-        Err(msg.trim().to_string())
-    }
-}
-
-#[tauri::command]
-pub fn take_screenshot(serial: Option<String>) -> Result<String, String> {
-    let timestamp = chrono_like_timestamp();
-    let local_name = format!("screenshot_{}.png", timestamp);
-    let remote_path = format!("/sdcard/{}", local_name);
-
-    let mut cap_args = Vec::new();
-    if let Some(ref s) = serial {
-        cap_args.extend_from_slice(&["-s", s]);
-    }
-    cap_args.extend_from_slice(&["shell", "screencap", "-p", &remote_path]);
-    run_adb_cmd(&cap_args)?;
-
-    let mut pull_args = Vec::new();
-    if let Some(ref s) = serial {
-        pull_args.extend_from_slice(&["-s", s]);
-    }
-    let local_dest = format!("./{}", local_name);
-    pull_args.extend_from_slice(&["pull", &remote_path, &local_dest]);
-    run_adb_cmd(&pull_args)?;
-
-    let mut rm_args = Vec::new();
-    if let Some(ref s) = serial {
-        rm_args.extend_from_slice(&["-s", s]);
-    }
-    rm_args.extend_from_slice(&["shell", "rm", "-f", &remote_path]);
-    let _ = run_adb_cmd(&rm_args);
-
-    Ok(format!("Screenshot saved to {}", local_dest))
-}
-
-#[tauri::command]
-pub fn screen_mirror(serial: Option<String>) -> Result<String, String> {
-    if which::which("scrcpy").is_err() {
-        return Err("scrcpy is not installed on this system. Please install scrcpy first.".to_string());
-    }
-
-    let mut cmd = Command::new("scrcpy");
-    if let Some(ref s) = serial {
-        cmd.args(&["-s", s]);
-    }
-
-    match cmd.spawn() {
-        Ok(_) => Ok("scrcpy launched successfully".to_string()),
-        Err(e) => Err(format!("Failed to launch scrcpy: {}", e)),
-    }
-}
-
-#[tauri::command]
-pub fn execute_shell(serial: Option<String>, command: String, root_mode: bool) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        args.extend_from_slice(&["-s", s]);
-    }
-
-    let escaped = command.replace('"', "\\\"");
-    let full_cmd = if root_mode {
-        format!("su -c \"{}\"", escaped)
-    } else {
-        command
-    };
-
-    args.extend_from_slice(&["shell", &full_cmd]);
-    let (code, stdout, stderr) = run_adb_cmd(&args)?;
-    if code == 0 {
-        Ok(stdout)
-    } else if !stdout.is_empty() {
-        Ok(format!("{}\n{}", stdout, stderr))
-    } else {
-        Err(stderr)
-    }
-}
-
-fn chrono_like_timestamp() -> String {
-    use std::time::SystemTime;
-    let duration = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
-    format!("{}", duration.as_secs())
-}
-
-static LOGCAT_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
-
-#[tauri::command]
-pub fn start_logcat_stream(
+pub async fn start_logcat_stream(
     app: tauri::AppHandle,
     serial: Option<String>,
     filter: Option<String>,
     level: Option<String>,
+    session_id: Option<String>,
 ) -> Result<(), String> {
-    use std::io::{BufRead, BufReader};
-    use std::process::{Command as StdCommand, Stdio};
     use tauri::Emitter;
 
-    // Terminate existing child if any
-    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
-        if let Some(mut child) = lock.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-    }
+    blocking(move || {
+        stop_logcat_blocking();
 
-    let adb = detect_adb();
-    let mut cmd = StdCommand::new(&adb);
-    if let Some(ref s) = serial {
-        if !s.trim().is_empty() {
-            cmd.args(&["-s", s.trim()]);
-        }
-    }
-    cmd.arg("logcat");
-    cmd.args(&["-v", "time"]);
-
-    if let Some(ref lvl) = level {
-        let l = lvl.trim();
-        if !l.is_empty() && l != "V" && l != "All" {
-            cmd.arg(format!("*:{}", l));
-        }
-    }
-
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn adb logcat: {}", e))?;
-    let stdout = child.stdout.take().ok_or_else(|| "Failed to capture logcat stdout".to_string())?;
-
-    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
-        *lock = Some(child);
-    }
-
-    let filter_kw = filter
-        .map(|f| f.trim().to_lowercase())
-        .filter(|f| !f.is_empty());
-
-    std::thread::spawn(move || {
-        let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    let matches = if let Some(ref kw) = filter_kw {
-                        l.to_lowercase().contains(kw)
-                    } else {
-                        true
-                    };
-                    if matches {
-                        if app.emit("logcat-line", l).is_err() {
-                            break;
-                        }
-                    }
-                }
-                Err(_) => break,
+        let session = new_task_id(session_id);
+        let mut cmd = std_command(&detect_adb());
+        cmd.args(crate::utils::serial_args(serial.as_deref()));
+        cmd.args(["logcat", "-v", "time"]);
+        if let Some(l) = level.as_deref().map(str::trim) {
+            if matches!(l, "D" | "I" | "W" | "E" | "F") {
+                cmd.arg(format!("*:{}", l));
             }
         }
-    });
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    Ok(())
+        let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn adb logcat: {}", e))?;
+        let stdout = child.stdout.take().ok_or("Failed to capture logcat output")?;
+        let stderr = child.stderr.take();
+
+        let filter_shared = Arc::new(Mutex::new(filter.unwrap_or_default().trim().to_lowercase()));
+        let pending: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let alive = Arc::new(AtomicBool::new(true));
+
+        // stdout reader: filter + queue
+        {
+            let (pending, alive, filter) = (pending.clone(), alive.clone(), filter_shared.clone());
+            std::thread::spawn(move || {
+                read_lossy_lines(stdout, |line| {
+                    let kw = filter.lock().unwrap_or_else(|p| p.into_inner()).clone();
+                    if kw.is_empty() || line.to_lowercase().contains(&kw) {
+                        let mut q = pending.lock().unwrap_or_else(|p| p.into_inner());
+                        if q.len() >= LOGCAT_MAX_PENDING {
+                            let drop_n = q.len() / 2; // backpressure: shed oldest lines
+                            q.drain(..drop_n);
+                        }
+                        q.push(line);
+                    }
+                    true
+                });
+                alive.store(false, Ordering::SeqCst);
+            });
+        }
+        // stderr reader: surface adb errors instead of letting the pipe fill up
+        if let Some(err) = stderr {
+            let pending = pending.clone();
+            std::thread::spawn(move || {
+                read_lossy_lines(err, |line| {
+                    pending.lock().unwrap_or_else(|p| p.into_inner()).push(format!("[adb] {}", line));
+                    true
+                });
+            });
+        }
+        // flusher: one IPC event per ~60ms instead of one per line
+        {
+            let (pending, alive, id) = (pending, alive, session);
+            std::thread::spawn(move || loop {
+                std::thread::sleep(Duration::from_millis(60));
+                let batch = std::mem::take(&mut *pending.lock().unwrap_or_else(|p| p.into_inner()));
+                if !batch.is_empty()
+                    && app.emit("logcat-batch", LogcatBatch { session: id.clone(), lines: batch }).is_err()
+                {
+                    break;
+                }
+                if !alive.load(Ordering::SeqCst) && pending.lock().unwrap_or_else(|p| p.into_inner()).is_empty() {
+                    let _ = app.emit("logcat-ended", LogcatEnded { session: id.clone() });
+                    break;
+                }
+            });
+        }
+
+        *logcat_slot().lock().unwrap_or_else(|p| p.into_inner()) = Some(LogcatSession { child, filter: filter_shared });
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn stop_logcat_stream() -> Result<(), String> {
-    if let Ok(mut lock) = LOGCAT_CHILD.lock() {
-        if let Some(mut child) = lock.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
+pub fn set_logcat_filter(filter: String) {
+    if let Some(s) = logcat_slot().lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
+        *s.filter.lock().unwrap_or_else(|p| p.into_inner()) = filter.trim().to_lowercase();
     }
-    Ok(())
 }
 
 #[tauri::command]
-pub fn clear_logcat(serial: Option<String>) -> Result<String, String> {
-    let mut args = Vec::new();
-    if let Some(ref s) = serial {
-        if !s.trim().is_empty() {
-            args.extend_from_slice(&["-s", s.trim()]);
-        }
-    }
-    args.extend_from_slice(&["logcat", "-c"]);
-    let (code, _, err) = run_adb_cmd(&args)?;
-    if code == 0 {
-        Ok("Logcat buffer cleared".to_string())
-    } else {
-        Err(err)
-    }
+pub async fn stop_logcat_stream() -> Result<(), String> {
+    blocking(|| {
+        stop_logcat_blocking();
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn clear_logcat(serial: Option<String>) -> Result<String, String> {
+    blocking(move || {
+        let (code, _, err) = run_adb(serial.as_deref(), &["logcat", "-c"])?;
+        if code == 0 { Ok("Logcat buffer cleared".to_string()) } else { Err(err) }
+    })
+    .await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn props(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
     #[test]
-    fn test_detect_rom_types() {
-        // Test fallback when no device or empty props
-        let res = detect_rom(None, "14");
-        assert!(res.rom_type == "AOSP" || res.rom_type == "AOSP / Custom");
+    fn getprop_dump_is_parsed() {
+        let out = "[ro.product.model]: [23049PCD8G]\n[ro.empty]: []\n[ro.build.version.release]: [15]\n";
+        let p = parse_getprop(out);
+        assert_eq!(p["ro.product.model"], "23049PCD8G");
+        assert_eq!(p["ro.build.version.release"], "15");
+        assert!(!p.contains_key("ro.empty"));
+    }
+
+    #[test]
+    fn hyperos2_version_is_short() {
+        let p = props(&[
+            ("ro.mi.os.version.incremental", "OS2.0.214.0.VOGEUXM"),
+            ("ro.mi.os.version.name", "OS2.0"),
+        ]);
+        let r = detect_rom(&p, "15");
+        assert_eq!(r.rom_type, "HyperOS");
+        assert_eq!(r.short_version, "OS2.0.214.0");
+        assert_eq!(r.rom_version, "OS2.0.214.0.VOGEUXM");
+    }
+
+    #[test]
+    fn miui14_is_detected() {
+        let p = props(&[
+            ("ro.miui.ui.version.name", "V140"),
+            ("ro.build.version.incremental", "V14.0.5.0.TKXMIXM"),
+        ]);
+        let r = detect_rom(&p, "13");
+        assert_eq!(r.rom_type, "MIUI");
+        assert_eq!(r.rom_name, "Xiaomi MIUI 14");
+        assert_eq!(r.short_version, "V14.0.5.0");
+    }
+
+    #[test]
+    fn custom_rom_and_aosp_fallback() {
+        let r = detect_rom(&props(&[("ro.lineage.version", "21.0-20250101-NIGHTLY-tanzanite")]), "15");
+        assert_eq!(r.rom_type, "LineageOS");
+        assert_eq!(r.short_version, "21.0");
+        // a flavor that merely contains "pixel" must not become a "Pixel AOSP" ROM
+        let r = detect_rom(&props(&[("ro.build.flavor", "somepixelthing-userdebug")]), "14");
+        assert_ne!(r.rom_name, "Pixel AOSP ROM");
+        assert_eq!(detect_rom(&HashMap::new(), "14").rom_type, "AOSP");
+    }
+
+    #[test]
+    fn ram_buckets() {
+        assert_eq!(ram_label(1_900_000), "2 GB");
+        assert_eq!(ram_label(2_800_000), "3 GB");
+        assert_eq!(ram_label(3_700_000), "4 GB");
+        assert_eq!(ram_label(5_600_000), "6 GB");
+        assert_eq!(ram_label(7_500_000), "8 GB");
+        assert_eq!(ram_label(11_400_000), "12 GB");
+        assert_eq!(ram_label(15_300_000), "16 GB");
+        assert_eq!(ram_label(23_000_000), "24 GB");
+    }
+
+    #[test]
+    fn storage_is_advertised_size() {
+        // ~235 GiB /data on a 256 GB phone, 40 GiB used
+        let s = storage_label(235 * 1_048_576, 40 * 1_048_576);
+        assert_eq!(s, "40.0 GB / 256 GB");
+        assert_eq!(storage_label(110 * 1_048_576, 10 * 1_048_576), "10.0 GB / 128 GB");
+    }
+
+    #[test]
+    fn df_parsing_handles_wrapped_lines() {
+        let one = "Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-9 246000000 41000000 205000000 17% /data\n";
+        assert_eq!(parse_df(one), Some((246000000, 41000000)));
+        let wrapped = "Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/mapper/very_long_name\n 246000000 41000000 205000000 17% /data\n";
+        assert_eq!(parse_df(wrapped), Some((246000000, 41000000)));
+    }
+
+    #[test]
+    fn soc_names() {
+        let p = props(&[("ro.soc.manufacturer", "QTI"), ("ro.soc.model", "SM8550")]);
+        assert_eq!(soc_label(&p), "Snapdragon 8 Gen 2 (SM8550)");
+        let p = props(&[("ro.board.platform", "kalama")]);
+        assert_eq!(soc_label(&p), "Snapdragon 8 Gen 2 (KALAMA)");
+        let p = props(&[("ro.board.platform", "unknownchip")]);
+        assert_eq!(soc_label(&p), "unknownchip");
+        assert_eq!(soc_label(&HashMap::new()), "-");
+    }
+
+    #[test]
+    fn battery_summary() {
+        let out = "Current Battery Service state:\n  AC powered: false\n  USB powered: true\n  status: 2\n  level: 85\n  temperature: 315\n";
+        assert_eq!(battery_label(out), "85% (Charging, 31.5°C)");
+        assert_eq!(battery_label("nothing"), "-");
+    }
+
+    #[test]
+    fn package_validation() {
+        assert!(validate_package("com.miui.analytics").is_ok());
+        assert!(validate_package("com.x; rm -rf /").is_err());
+        assert!(validate_package("").is_err());
+    }
+
+    #[test]
+    fn device_list_parsing() {
+        let out = "List of devices attached\nabc123\tdevice product:x model:Y\nxyz\tunauthorized\n\n";
+        let d = parse_devices(out);
+        assert_eq!(d.len(), 2);
+        assert_eq!(d[1].state, "unauthorized");
     }
 }
-

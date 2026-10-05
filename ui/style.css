@@ -270,7 +270,7 @@ body {
   font-weight: 600;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s var(--ease-smooth);
+  transition: background-color 0.2s var(--ease-smooth), border-color 0.2s var(--ease-smooth), color 0.2s var(--ease-smooth), opacity 0.2s var(--ease-smooth), transform 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
 }
 
 .btn:active {
@@ -388,7 +388,7 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: center;
   vertical-align: middle;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
   outline: none;
 }
@@ -418,8 +418,8 @@ input[type="checkbox"]:checked {
   min-width: 190px;
   box-shadow: var(--shadow-lg);
   z-index: 1500;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .dropdown-item {
@@ -442,8 +442,8 @@ input[type="checkbox"]:checked {
    ========================================== */
 .card {
   background: var(--bg-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 20px;
@@ -502,7 +502,7 @@ input[type="checkbox"]:checked {
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .filter-chip.active {
@@ -651,7 +651,7 @@ input[type="checkbox"]:checked {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 0.2s var(--ease-smooth);
+  transition: background-color 0.2s var(--ease-smooth), border-color 0.2s var(--ease-smooth), color 0.2s var(--ease-smooth), opacity 0.2s var(--ease-smooth), transform 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
 }
 
 .tool-btn:hover {
@@ -677,7 +677,7 @@ input[type="checkbox"]:checked {
   padding: 18px 14px;
   text-align: center;
   background: var(--table-stripe);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   user-select: none;
 }
@@ -810,7 +810,7 @@ input[type="checkbox"]:checked {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .p-chip.active {
@@ -983,7 +983,7 @@ input[type="checkbox"]:checked {
   padding: 4px 8px;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .btn-panel-action:hover {
@@ -1106,7 +1106,7 @@ input[type="checkbox"]:checked {
   border-radius: 18px;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: all 0.25s var(--ease-spring);
+  transition: background-color 0.25s var(--ease-spring), border-color 0.25s var(--ease-spring), color 0.25s var(--ease-spring), opacity 0.25s var(--ease-spring), transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
 }
 
 .btn-transfer:hover {
@@ -1144,7 +1144,7 @@ input[type="checkbox"]:checked {
   padding: 6px 14px;
   border-radius: 20px;
   border: 1px solid var(--border-color);
-  transition: all 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 .root-switch-label:hover {
@@ -1226,7 +1226,7 @@ body.theme-light .switch-slider {
   font-size: 11px;
   font-family: monospace;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .chip-cmd:hover {
@@ -1296,7 +1296,7 @@ body.theme-light .switch-slider {
 
 .about-phone-card {
   background: var(--bg-card);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: 24px;
   padding: 24px;
@@ -1381,7 +1381,7 @@ body.theme-light .switch-slider {
   font-size: 11px;
   color: #3b82f6;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .device-rom-badge.badge-aosp {
@@ -1485,7 +1485,7 @@ body.theme-light .switch-slider {
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s var(--ease-smooth);
+  transition: background-color 0.2s var(--ease-smooth), border-color 0.2s var(--ease-smooth), color 0.2s var(--ease-smooth), opacity 0.2s var(--ease-smooth), transform 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
 }
 
 .theme-btn:hover {
@@ -1530,7 +1530,7 @@ body.theme-light .switch-slider {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s var(--ease-spring);
+  transition: background-color 0.2s var(--ease-spring), border-color 0.2s var(--ease-spring), color 0.2s var(--ease-spring), opacity 0.2s var(--ease-spring), transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-spring);
 }
 
 .btn-social:hover {
@@ -1567,8 +1567,8 @@ body.theme-light .switch-slider {
   align-items: center;
   position: relative;
   background: var(--dock-bg);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--dock-border);
   border-radius: 36px;
   padding: 6px;
@@ -1661,7 +1661,7 @@ body.theme-light .switch-slider {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  backdrop-filter: none;
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -1928,3 +1928,45 @@ body.theme-light ::-webkit-scrollbar-thumb {
 }
 
 
+
+
+/* ---------- Native screen mirror ---------- */
+.modal-window.mirror-modal-window {
+  width: min(460px, 94vw);
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+}
+.mirror-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px;
+  align-items: center;
+}
+.mirror-body {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  overflow: hidden;
+}
+.mirror-canvas {
+  max-width: 100%;
+  max-height: 68vh;
+  border-radius: 12px;
+  background: #000;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* ---------- Performance helpers ---------- */
+.logcat-viewer {
+  contain: content;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

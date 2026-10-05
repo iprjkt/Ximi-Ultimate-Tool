@@ -132,7 +132,7 @@
               </button>
               <button class="tool-btn" id="btn-screen-mirror">
                 <div class="tool-icon">🪞</div>
-                <div class="tool-label" data-i18n="screen_mirror">Screen Mirror (scrcpy)</div>
+                <div class="tool-label" data-i18n="screen_mirror">Screen Mirror</div>
               </button>
               <button class="tool-btn" id="btn-install-apk">
                 <div class="tool-icon">📦</div>
@@ -697,6 +697,39 @@
       <div class="modal-footer logcat-footer">
         <span class="logcat-counter" id="logcat-counter">0 lines</span>
         <button class="btn btn-secondary btn-sm" id="btn-close-logcat-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for native Screen Mirror -->
+  <div class="modal-overlay hidden" id="mirror-modal">
+    <div class="modal-window mirror-modal-window">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-title">🪞 Screen Mirror</span>
+          <span class="logcat-device-tag" id="mirror-device-tag">-</span>
+        </div>
+        <button class="btn-icon-tiny" id="btn-close-mirror">✕</button>
+      </div>
+      <div class="mirror-toolbar">
+        <button class="btn btn-secondary btn-sm" id="mirror-key-back" title="Back">◀ Back</button>
+        <button class="btn btn-secondary btn-sm" id="mirror-key-home" title="Home">⬤ Home</button>
+        <button class="btn btn-secondary btn-sm" id="mirror-key-recents" title="Recents">▣ Recents</button>
+        <button class="btn btn-secondary btn-sm" id="mirror-key-voldown" title="Volume down">🔉</button>
+        <button class="btn btn-secondary btn-sm" id="mirror-key-volup" title="Volume up">🔊</button>
+        <button class="btn btn-secondary btn-sm" id="mirror-key-power" title="Power">⏻</button>
+        <select class="select-miui select-sm" id="mirror-quality" title="Resolution">
+          <option value="720">720p</option>
+          <option value="1280" selected>1280p</option>
+          <option value="1920">1920p</option>
+        </select>
+      </div>
+      <div class="modal-body mirror-body">
+        <canvas id="mirror-canvas" class="mirror-canvas" width="360" height="800"></canvas>
+      </div>
+      <div class="modal-footer">
+        <span class="logcat-counter" id="mirror-status">-</span>
+        <span class="logcat-counter">Click = tap · drag = swipe</span>
       </div>
     </div>
   </div>

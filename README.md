@@ -34,7 +34,7 @@
 - **Curated Xiaomi Bloatware Database**: One-click automatic debloat covering Xiaomi Analytics, Joyose telemetry, MIUI System Ads (`msa`), GetApps, Quick Apps, Wallpaper Carousel, Facebook services, and Google preloads.
 - **Manual Debloat & App Filter**: Real-time filtering by *Curated Bloatware*, *All Packages*, *3rd Party Apps*, *System Apps*, or *Disabled Apps*.
 - **Flexible Package Operations**: Uninstall (`pm uninstall -k --user 0`), Restore/Reinstall (`cmd package install-existing`), Disable (`pm disable-user`), and Enable.
-- **Device Quick Tools**: Screenshot grabber, One-click APK installer, and Screen Mirroring via `scrcpy`.
+- **Device Quick Tools**: Screenshot grabber, One-click APK installer, and built-in Screen Mirroring (no scrcpy needed; adb screenrecord + WebCodecs).
 
 ### 2. 📁 MT Manager Dual-Panel File Explorer
 - **MT Manager Dual-Panel Workflow**:

@@ -1,5 +1,6 @@
-use crate::adb::get_device_specs;
-use crate::utils::run_adb_cmd;
+use crate::adb::device_specs_cached;
+use crate::utils::{blocking, run_adb};
+use std::time::Duration;
 
 const C_RESET: &str = "\x1b[0m";
 const C_BOLD: &str = "\x1b[1m";
@@ -13,63 +14,46 @@ const C_WHITE: &str = "\x1b[38;2;248;250;252m";
 const C_GRAY: &str = "\x1b[38;2;148;163;184m";
 
 #[tauri::command]
-pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<String, String> {
-    if serial.as_deref().map_or(true, |s| s.trim().is_empty()) {
-        return Err("No ADB device connected. Please connect a device first.".to_string());
-    }
+pub async fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<String, String> {
+    let serial = serial
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "No ADB device connected. Please connect a device first.".to_string())?;
+    let is_root_req = root_mode.unwrap_or(false);
+    blocking(move || build_fastfetch(&serial, is_root_req)).await
+}
 
-    let specs = get_device_specs(serial.clone())?;
-    let s_ref = serial.as_deref();
+fn build_fastfetch(serial: &str, root_mode: bool) -> Result<String, String> {
+    let specs = device_specs_cached(serial, Duration::from_secs(30))?;
+    let s_ref = Some(serial);
 
-    // Kernel uname
-    let mut uname_args = Vec::new();
-    if let Some(s) = s_ref {
-        uname_args.extend_from_slice(&["-s", s]);
-    }
-    uname_args.extend_from_slice(&["shell", "uname", "-r"]);
-    let kernel_str = if let Ok((0, out, _)) = run_adb_cmd(&uname_args) {
-        let trimmed = out.trim();
-        if trimmed.is_empty() { "-".to_string() } else { trimmed.to_string() }
-    } else {
-        "-".to_string()
-    };
+    // kernel, uptime, display and uid in one round trip
+    let (_, out, _) = run_adb(s_ref, &["shell", "uname -r; echo @@; cat /proc/uptime; echo @@; wm size; echo @@; id -u"])?;
+    let mut parts = out.splitn(4, "@@");
+    let kernel_str = parts.next().map(str::trim).filter(|s| !s.is_empty()).unwrap_or("-").to_string();
 
-    // Uptime
-    let mut uptime_args = Vec::new();
-    if let Some(s) = s_ref {
-        uptime_args.extend_from_slice(&["-s", s]);
-    }
-    uptime_args.extend_from_slice(&["shell", "cat", "/proc/uptime"]);
     let mut uptime_str = "-".to_string();
-    if let Ok((0, out, _)) = run_adb_cmd(&uptime_args) {
-        if let Some(first) = out.split_whitespace().next() {
-            if let Ok(sec) = first.parse::<f64>() {
-                let s_int = sec as u64;
-                let days = s_int / 86400;
-                let hours = (s_int % 86400) / 3600;
-                let mins = (s_int % 3600) / 60;
-                let mut parts = Vec::new();
-                if days > 0 { parts.push(format!("{} days", days)); }
-                if hours > 0 { parts.push(format!("{} hours", hours)); }
-                parts.push(format!("{} mins", mins));
-                uptime_str = parts.join(", ");
-            }
-        }
+    if let Some(sec) = parts.next().and_then(|p| p.split_whitespace().next()).and_then(|f| f.parse::<f64>().ok()) {
+        let s_int = sec as u64;
+        let (days, hours, mins) = (s_int / 86400, (s_int % 86400) / 3600, (s_int % 3600) / 60);
+        let mut v = Vec::new();
+        if days > 0 { v.push(format!("{} days", days)); }
+        if hours > 0 { v.push(format!("{} hours", hours)); }
+        v.push(format!("{} mins", mins));
+        uptime_str = v.join(", ");
     }
 
-    // Display resolution
-    let mut wm_args = Vec::new();
-    if let Some(s) = s_ref {
-        wm_args.extend_from_slice(&["-s", s]);
-    }
-    wm_args.extend_from_slice(&["shell", "wm", "size"]);
-    let res_str = if let Ok((0, out, _)) = run_adb_cmd(&wm_args) {
-        out.split(':').nth(1).map(|s| s.trim().to_string()).unwrap_or_else(|| "-".into())
-    } else {
-        "-".into()
-    };
+    // "Physical size: 1080x2400" and optionally "Override size: ..." (the override is what is shown)
+    let res_str = parts
+        .next()
+        .and_then(|w| {
+            let line = w.lines().rev().find(|l| l.contains("size:"))?;
+            line.split(':').nth(1).map(|s| s.trim().to_string())
+        })
+        .unwrap_or_else(|| "-".into());
 
-    let is_root = root_mode.unwrap_or(false);
+    let uid = parts.next().map(str::trim).unwrap_or("2000").to_string();
+    let is_root = root_mode || uid == "0";
     let title_user = if is_root { "root" } else { "shell" };
     let device_host = &specs.device;
     let title_line = format!("{C_BOLD}{C_PURPLE}{title_user}{C_RESET}@{C_BOLD}{C_BLUE}{device_host}{C_RESET}");
@@ -105,7 +89,7 @@ pub fn run_fastfetch(serial: Option<String>, root_mode: Option<bool>) -> Result<
         format!("{C_BOLD}{C_PURPLE}ROM Type{C_RESET}: {}", specs.rom_type),
         format!("{C_BOLD}{C_PURPLE}Host{C_RESET}: {} ({})", specs.market_name, specs.model),
         format!("{C_BOLD}{C_PURPLE}Kernel{C_RESET}: {}", kernel_str),
-        format!("{C_BOLD}{C_PURPLE}User{C_RESET}: {} ({})", title_user, if is_root { "Privileged UID 0" } else { "Unprivileged UID 2000" }),
+        format!("{C_BOLD}{C_PURPLE}User{C_RESET}: {} ({})", title_user, if is_root { "Privileged UID 0".to_string() } else { format!("Unprivileged UID {}", uid) }),
         format!("{C_BOLD}{C_PURPLE}Android{C_RESET}: {}", specs.android_ver),
         format!("{C_BOLD}{C_PURPLE}Uptime{C_RESET}: {}", uptime_str),
         format!("{C_BOLD}{C_PURPLE}Display{C_RESET}: {}", res_str),
