@@ -350,6 +350,312 @@ pub fn get_curated_bloatware() -> Vec<BloatwareItem> {
             risk: "Safe".into(),
             description: "Google bug and feedback uploader.".into(),
         },
+        // Samsung Services & Bloatware
+        BloatwareItem {
+            package: "com.samsung.android.bixby.agent".into(),
+            name: "Bixby Voice".into(),
+            category: "Bixby".into(),
+            risk: "Safe".into(),
+            description: "Samsung Bixby voice assistant.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.bixby.service".into(),
+            name: "Bixby Service".into(),
+            category: "Bixby".into(),
+            risk: "Safe".into(),
+            description: "Bixby core background service.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.bixby.wakeup".into(),
+            name: "Bixby Wakeup".into(),
+            category: "Bixby".into(),
+            risk: "Safe".into(),
+            description: "Bixby hotword voice wakeup listener.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.app.spage".into(),
+            name: "Samsung Free / Daily".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Samsung lockscreen/homescreen media and news feed.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.game.gamehome".into(),
+            name: "Samsung Gaming Hub".into(),
+            category: "Games".into(),
+            risk: "Safe".into(),
+            description: "Samsung Game Launcher / Gaming Hub with promo games.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.ardrawing".into(),
+            name: "AR Doodle".into(),
+            category: "Samsung".into(),
+            risk: "Safe".into(),
+            description: "Samsung AR camera doodle feature.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.arzone".into(),
+            name: "AR Zone".into(),
+            category: "Samsung".into(),
+            risk: "Safe".into(),
+            description: "Samsung AR emoji and stickers suite.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.kidsinstaller".into(),
+            name: "Samsung Kids Installer".into(),
+            category: "Samsung".into(),
+            risk: "Safe".into(),
+            description: "Installer for Samsung Kids Mode sandbox.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.app.tips".into(),
+            name: "Samsung Tips".into(),
+            category: "Samsung".into(),
+            risk: "Safe".into(),
+            description: "Device usage tips and feature promotional popups.".into(),
+        },
+        BloatwareItem {
+            package: "com.samsung.android.rubin.app".into(),
+            name: "Customization Service (Rubin)".into(),
+            category: "Analytics".into(),
+            risk: "Safe".into(),
+            description: "Samsung personalized analytics and ad targeting engine.".into(),
+        },
+        // Vivo / iQOO Services & Bloatware
+        BloatwareItem {
+            package: "com.vivo.appstore".into(),
+            name: "V-Appstore".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Vivo official app marketplace with push ads.".into(),
+        },
+        BloatwareItem {
+            package: "com.bbk.appstore".into(),
+            name: "V-Appstore Engine".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Core download engine for BBK/Vivo App Store.".into(),
+        },
+        BloatwareItem {
+            package: "com.vivo.browser".into(),
+            name: "Vivo Browser".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Stock Vivo browser bundled with news and ad recommendations.".into(),
+        },
+        BloatwareItem {
+            package: "com.vivo.game".into(),
+            name: "Vivo Game Center".into(),
+            category: "Games".into(),
+            risk: "Safe".into(),
+            description: "Vivo gaming store and promotion service.".into(),
+        },
+        BloatwareItem {
+            package: "com.vivo.globalsearch".into(),
+            name: "Jovi Search".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Global search with online trending feeds and ads.".into(),
+        },
+        BloatwareItem {
+            package: "com.vivo.hiboard".into(),
+            name: "Jovi Smart Scene (HiBoard)".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Negative-one screen with news feeds and sponsored cards.".into(),
+        },
+        BloatwareItem {
+            package: "com.vivo.magazine".into(),
+            name: "Lockscreen Magazine".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Lock screen rotating wallpapers with sponsored stories.".into(),
+        },
+        BloatwareItem {
+            package: "com.bbk.theme".into(),
+            name: "i Theme".into(),
+            category: "System".into(),
+            risk: "Optional".into(),
+            description: "Vivo theme and wallpaper store.".into(),
+        },
+        // OPPO / Realme / OnePlus (ColorOS / OxygenOS)
+        BloatwareItem {
+            package: "com.heytap.browser".into(),
+            name: "HeyTap Browser".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OPPO/Realme stock browser with promotional feed.".into(),
+        },
+        BloatwareItem {
+            package: "com.heytap.market".into(),
+            name: "App Market".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OPPO/Realme official application marketplace.".into(),
+        },
+        BloatwareItem {
+            package: "com.heytap.pictorial".into(),
+            name: "Lock Screen Magazine".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OPPO/Realme lock screen wallpapers with ads.".into(),
+        },
+        BloatwareItem {
+            package: "com.heytap.themestore".into(),
+            name: "Theme Store".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Theme marketplace with promotional push banners.".into(),
+        },
+        BloatwareItem {
+            package: "com.coloros.gamespace".into(),
+            name: "Game Space".into(),
+            category: "Games".into(),
+            risk: "Optional".into(),
+            description: "Gaming assistant and accelerator.".into(),
+        },
+        BloatwareItem {
+            package: "com.oppo.quicksearchbox".into(),
+            name: "Global Search".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OPPO global search bar with trending ad tags.".into(),
+        },
+        BloatwareItem {
+            package: "com.oneplus.mall".into(),
+            name: "OnePlus Store".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OnePlus hardware and accessory store.".into(),
+        },
+        BloatwareItem {
+            package: "com.oneplus.membership".into(),
+            name: "Red Cable Club".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "OnePlus membership and promotional rewards.".into(),
+        },
+        // Transsion (Infinix XOS / Tecno HiOS / itel)
+        BloatwareItem {
+            package: "com.transsion.palmpay".into(),
+            name: "PalmPay".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Preloaded mobile payment and promotional wallet.".into(),
+        },
+        BloatwareItem {
+            package: "com.transsion.phoenix".into(),
+            name: "Phoenix Browser".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Aggressive third-party browser bundled on Transsion devices.".into(),
+        },
+        BloatwareItem {
+            package: "com.transsnet.boomplayer".into(),
+            name: "Boomplay".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Preloaded music streaming client with banner ads.".into(),
+        },
+        BloatwareItem {
+            package: "com.talpa.hibrowser".into(),
+            name: "Hi Browser".into(),
+            category: "Ads".into(),
+            risk: "Safe".into(),
+            description: "Tecno HiOS default browser with sponsored feeds.".into(),
+        },
+        // Microsoft & Partner Preloads
+        BloatwareItem {
+            package: "com.microsoft.skydrive".into(),
+            name: "Microsoft OneDrive".into(),
+            category: "Microsoft".into(),
+            risk: "Safe".into(),
+            description: "Microsoft cloud storage client preloaded on Samsung/OEMs.".into(),
+        },
+        BloatwareItem {
+            package: "com.microsoft.office.officehubrow".into(),
+            name: "Microsoft 365 (Office)".into(),
+            category: "Microsoft".into(),
+            risk: "Safe".into(),
+            description: "Microsoft Office productivity suite.".into(),
+        },
+        BloatwareItem {
+            package: "com.microsoft.office.outlook".into(),
+            name: "Microsoft Outlook".into(),
+            category: "Microsoft".into(),
+            risk: "Safe".into(),
+            description: "Microsoft Outlook email client.".into(),
+        },
+        BloatwareItem {
+            package: "com.linkedin.android".into(),
+            name: "LinkedIn".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "LinkedIn professional network app.".into(),
+        },
+        BloatwareItem {
+            package: "com.amazon.mShop.android.shopping".into(),
+            name: "Amazon Shopping".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Amazon e-commerce store client.".into(),
+        },
+        BloatwareItem {
+            package: "com.amazon.appmanager".into(),
+            name: "Amazon App Manager".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Silent Amazon installer service.".into(),
+        },
+        BloatwareItem {
+            package: "com.netflix.mediaclient".into(),
+            name: "Netflix".into(),
+            category: "Bloatware".into(),
+            risk: "Optional".into(),
+            description: "Netflix streaming service client.".into(),
+        },
+        BloatwareItem {
+            package: "com.netflix.partner.activation".into(),
+            name: "Netflix Partner Activation".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Background stub for activating bundled Netflix offers.".into(),
+        },
+        BloatwareItem {
+            package: "com.spotify.music".into(),
+            name: "Spotify".into(),
+            category: "Bloatware".into(),
+            risk: "Optional".into(),
+            description: "Preloaded Spotify music streaming app.".into(),
+        },
+        BloatwareItem {
+            package: "com.bytedance.tiktok".into(),
+            name: "TikTok".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Preloaded TikTok short-video app.".into(),
+        },
+        BloatwareItem {
+            package: "com.zhiliaoapp.musically".into(),
+            name: "TikTok Global".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Preloaded TikTok regional/global package.".into(),
+        },
+        BloatwareItem {
+            package: "com.shopee.id".into(),
+            name: "Shopee".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Shopee e-commerce client preloaded on SE Asian OEM builds.".into(),
+        },
+        BloatwareItem {
+            package: "com.lazada.android".into(),
+            name: "Lazada".into(),
+            category: "Bloatware".into(),
+            risk: "Safe".into(),
+            description: "Lazada shopping client preloaded on OEM devices.".into(),
+        },
     ]
 }
 
@@ -468,6 +774,14 @@ const CUSTOM_ROMS: &[(&str, &str, &[&str], Option<char>)] = &[
     ("SparkOS", "SparkOS", &["ro.spark.version"], None),
     ("CherishOS", "CherishOS", &["ro.cherish.version"], None),
     ("CalyxOS", "CalyxOS", &["ro.calyxos.version"], None),
+    ("Corvus OS", "Corvus OS", &["ro.corvus.version"], None),
+    ("SuperiorOS", "SuperiorOS", &["ro.superior.version"], None),
+    ("AncientOS", "AncientOS", &["ro.ancient.version"], None),
+    ("Nusantara Project", "Nusantara Project", &["ro.nusantara.version"], None),
+    ("Resurrection Remix", "Resurrection Remix", &["ro.rr.version"], None),
+    ("GrapheneOS", "GrapheneOS", &["ro.build.version.graphene"], None),
+    ("/e/OS", "/e/OS", &["ro.e.version"], None),
+    ("iodéOS", "iodéOS", &["ro.iode.version"], None),
 ];
 
 /// `OS2.0.214.0.VOGEUXM` -> `OS2.0.214.0`, `V14.0.5.0.TKXMIXM` -> `V14.0.5.0`.
@@ -478,6 +792,277 @@ fn short_xiaomi_version(full: &str) -> String {
         Some(c) => format!("{}{}", &c[1], &c[2]),
         None => full.to_string(),
     }
+}
+
+fn parse_vivo_rom(p: &HashMap<String, String>) -> Option<RomDetails> {
+    let vivo_name = prop(p, "ro.vivo.os.name");
+    let vivo_ver = prop(p, "ro.vivo.os.version");
+    let vivo_display = prop(p, "ro.vivo.os.build.display.id");
+    let vivo_prod_ver = prop(p, "ro.vivo.product.version");
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+
+    if !vivo_name.is_empty() || !vivo_display.is_empty() || brand == "vivo" || brand == "iqoo" {
+        let is_origin = vivo_name.to_lowercase().contains("origin")
+            || vivo_display.to_lowercase().contains("origin");
+        let rom_type = if is_origin { "OriginOS" } else { "Funtouch OS" };
+        let rom_name = if is_origin { "Vivo OriginOS" } else { "Vivo Funtouch OS" };
+
+        let short_ver = if !vivo_ver.is_empty() {
+            vivo_ver.to_string()
+        } else if !vivo_display.is_empty() {
+            vivo_display
+                .replace("Funtouch OS_", "")
+                .replace("Funtouch OS ", "")
+                .replace("OriginOS ", "")
+        } else {
+            "-".to_string()
+        };
+
+        let full_ver = if !vivo_prod_ver.is_empty() && !vivo_display.is_empty() {
+            format!("{} ({})", vivo_prod_ver, vivo_display)
+        } else if !vivo_display.is_empty() {
+            vivo_display.to_string()
+        } else if !vivo_prod_ver.is_empty() {
+            vivo_prod_ver.to_string()
+        } else {
+            short_ver.clone()
+        };
+
+        return Some(RomDetails {
+            rom_type: rom_type.into(),
+            rom_name: rom_name.into(),
+            short_version: short_ver,
+            rom_version: full_ver,
+        });
+    }
+    None
+}
+
+fn parse_samsung_oneui(p: &HashMap<String, String>, android_ver: &str) -> Option<RomDetails> {
+    let oneui_prop = first_prop(p, &["ro.build.version.oneui", "ro.build.version.one_ui"]);
+    let sep_prop = prop(p, "ro.build.version.sep");
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+
+    if !oneui_prop.is_empty() || !sep_prop.is_empty() || brand == "samsung" {
+        let mut short = String::new();
+        if !oneui_prop.is_empty() {
+            if oneui_prop.contains('.') {
+                short = oneui_prop.to_string();
+            } else if let Ok(num) = oneui_prop.parse::<u32>() {
+                let major = num / 10000;
+                let minor = (num % 10000) / 100;
+                short = if minor > 0 { format!("{}.{}", major, minor) } else { format!("{}", major) };
+            }
+        }
+        if short.is_empty() && !sep_prop.is_empty() {
+            if let Ok(num) = sep_prop.parse::<u32>() {
+                let sep_major = num / 10000;
+                let sep_minor = (num % 10000) / 100;
+                if sep_major >= 10 {
+                    let oneui_major = sep_major - 9;
+                    short = if sep_minor > 0 { format!("{}.{}", oneui_major, sep_minor) } else { format!("{}", oneui_major) };
+                }
+            }
+        }
+        if short.is_empty() && brand == "samsung" {
+            short = match android_ver.trim() {
+                "15" => "7.0",
+                "14" => "6.0",
+                "13" => "5.0",
+                "12" => "4.0",
+                "11" => "3.0",
+                "10" => "2.0",
+                "9" => "1.0",
+                _ => "",
+            }
+            .to_string();
+        }
+
+        if !short.is_empty() || brand == "samsung" {
+            let display_id = prop(p, "ro.build.display.id");
+            let build = if !display_id.is_empty() {
+                display_id.to_string()
+            } else if !short.is_empty() {
+                format!("One UI {}", short)
+            } else {
+                "One UI".to_string()
+            };
+            return Some(RomDetails {
+                rom_type: "One UI".into(),
+                rom_name: "Samsung One UI".into(),
+                short_version: if short.is_empty() { "-".into() } else { short },
+                rom_version: build,
+            });
+        }
+    }
+    None
+}
+
+fn parse_oppo_oneplus_realme(p: &HashMap<String, String>) -> Option<RomDetails> {
+    // 1. Realme UI
+    let realme_ui = first_prop(p, &["ro.build.version.realmeui", "ro.realme.version"]);
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+    if !realme_ui.is_empty() || brand == "realme" {
+        let v = if !realme_ui.is_empty() { realme_ui } else { prop(p, "ro.build.display.id") };
+        let short = v.trim_start_matches(['V', 'v']).to_string();
+        return Some(RomDetails {
+            rom_type: "Realme UI".into(),
+            rom_name: "Realme UI".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    // 2. OxygenOS / HydrogenOS (OnePlus)
+    let oxygen = first_prop(p, &["ro.oxygen.version", "ro.build.ota.versionname"]);
+    if (!oxygen.is_empty() && oxygen.to_lowercase().contains("oxygen")) || prop(p, "ro.oxygen.version") != "" || brand == "oneplus" {
+        let v = first_prop(p, &["ro.oxygen.version", "ro.build.ota.versionname", "ro.build.display.id"]);
+        let short = v.replace("OxygenOS_", "").replace("Oxygen OS_", "").replace("OxygenOS ", "");
+        return Some(RomDetails {
+            rom_type: "OxygenOS".into(),
+            rom_name: "OnePlus OxygenOS".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    // 3. ColorOS (OPPO)
+    let coloros = first_prop(p, &["ro.build.version.opporom", "ro.coloros.version", "ro.build.version.oplusrom"]);
+    if !coloros.is_empty() || brand == "oppo" {
+        let v = if !coloros.is_empty() { coloros } else { prop(p, "ro.build.display.id") };
+        let short = v.trim_start_matches(['V', 'v']).to_string();
+        return Some(RomDetails {
+            rom_type: "ColorOS".into(),
+            rom_name: "OPPO ColorOS".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    None
+}
+
+fn parse_huawei_honor(p: &HashMap<String, String>) -> Option<RomDetails> {
+    let magic = first_prop(p, &["ro.build.version.magic", "ro.honor.build.version.incremental"]);
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+    if !magic.is_empty() || brand == "honor" {
+        let v = if !magic.is_empty() { magic } else { prop(p, "ro.build.display.id") };
+        let short = v.replace("MagicOS ", "").replace("MagicUI ", "").replace("MagicOS_", "");
+        return Some(RomDetails {
+            rom_type: "MagicOS".into(),
+            rom_name: "Honor MagicOS".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    let harmony = first_prop(p, &["hw_sc.build.platform.version", "ro.harmony.version"]);
+    if !harmony.is_empty() {
+        return Some(RomDetails {
+            rom_type: "HarmonyOS".into(),
+            rom_name: "Huawei HarmonyOS".into(),
+            short_version: harmony.replace("HarmonyOS ", "").replace("HarmonyOS_", ""),
+            rom_version: harmony.to_string(),
+        });
+    }
+
+    let emui = first_prop(p, &["ro.build.version.emui", "ro.build.hw_emui_api_level"]);
+    if !emui.is_empty() || brand == "huawei" {
+        let v = if !emui.is_empty() { emui } else { prop(p, "ro.build.display.id") };
+        let short = v.replace("EmotionUI_", "").replace("EMUI ", "").replace("EMUI_", "");
+        return Some(RomDetails {
+            rom_type: "EMUI".into(),
+            rom_name: "Huawei EMUI".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    None
+}
+
+fn parse_transsion(p: &HashMap<String, String>) -> Option<RomDetails> {
+    let xos = first_prop(p, &["ro.xos.version", "ro.transtek.xos.version"]);
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+    if !xos.is_empty() || brand == "infinix" {
+        let v = if !xos.is_empty() { xos } else { prop(p, "ro.build.display.id") };
+        let short = v.replace("XOS ", "").replace('v', "").replace('V', "");
+        return Some(RomDetails {
+            rom_type: "XOS".into(),
+            rom_name: "Infinix XOS".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    let hios = first_prop(p, &["ro.hios.version", "ro.transtek.hios.version"]);
+    if !hios.is_empty() || brand == "tecno" {
+        let v = if !hios.is_empty() { hios } else { prop(p, "ro.build.display.id") };
+        let short = v.replace("HiOS ", "").replace('v', "").replace('V', "");
+        return Some(RomDetails {
+            rom_type: "HiOS".into(),
+            rom_name: "Tecno HiOS".into(),
+            short_version: if short.is_empty() { "-".into() } else { short },
+            rom_version: v.to_string(),
+        });
+    }
+
+    let itel = first_prop(p, &["ro.itel.version", "ro.transtek.itel.version"]);
+    if !itel.is_empty() || brand == "itel" {
+        let v = if !itel.is_empty() { itel } else { prop(p, "ro.build.display.id") };
+        return Some(RomDetails {
+            rom_type: "itelOS".into(),
+            rom_name: "itelOS".into(),
+            short_version: v.replace("itelOS ", "").to_string(),
+            rom_version: v.to_string(),
+        });
+    }
+
+    None
+}
+
+fn parse_other_oems(p: &HashMap<String, String>, android_ver: &str) -> Option<RomDetails> {
+    let asus = first_prop(p, &["ro.asus.uiversion", "ro.build.asus.version"]);
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+    if !asus.is_empty() || brand == "asus" {
+        let is_rog = asus.to_lowercase().contains("rog") || prop(p, "ro.product.model").to_lowercase().contains("rog");
+        let rom_type = if is_rog { "ROG UI" } else { "ZenUI" };
+        let rom_name = if is_rog { "ASUS ROG UI" } else { "ASUS ZenUI" };
+        let v = if !asus.is_empty() { asus } else { prop(p, "ro.build.display.id") };
+        return Some(RomDetails {
+            rom_type: rom_type.into(),
+            rom_name: rom_name.into(),
+            short_version: v.replace("ZenUI ", "").replace("ROG UI ", ""),
+            rom_version: v.to_string(),
+        });
+    }
+
+    let nothing = first_prop(p, &["ro.nothing.version", "ro.build.version.nos"]);
+    if !nothing.is_empty() || brand == "nothing" {
+        let v = if !nothing.is_empty() { nothing } else { prop(p, "ro.build.display.id") };
+        return Some(RomDetails {
+            rom_type: "Nothing OS".into(),
+            rom_name: "Nothing OS".into(),
+            short_version: v.replace("Nothing OS ", "").replace("NOS ", ""),
+            rom_version: v.to_string(),
+        });
+    }
+
+    let moto_blur = first_prop(p, &["ro.mot.build.customerid", "ro.motorola.build.version"]);
+    if !moto_blur.is_empty() || brand == "motorola" {
+        let v = first_prop(p, &["ro.build.version.full", "ro.build.display.id"]);
+        let is_hello = android_ver.parse::<u32>().unwrap_or(0) >= 14;
+        let rom_type = if is_hello { "Hello UI" } else { "My UX" };
+        let rom_name = format!("Motorola {}", rom_type);
+        return Some(RomDetails {
+            rom_type: rom_type.to_string(),
+            rom_name,
+            short_version: if android_ver.is_empty() { "-".to_string() } else { format!("Android {}", android_ver) },
+            rom_version: if !v.is_empty() { v.to_string() } else { moto_blur.to_string() },
+        });
+    }
+
+    None
 }
 
 pub fn detect_rom(p: &HashMap<String, String>, android_ver: &str) -> RomDetails {
@@ -528,6 +1113,36 @@ pub fn detect_rom(p: &HashMap<String, String>, android_ver: &str) -> RomDetails 
         };
     }
 
+    // OEM ROMs: Vivo / iQOO
+    if let Some(rom) = parse_vivo_rom(p) {
+        return rom;
+    }
+
+    // OEM ROMs: Samsung One UI
+    if let Some(rom) = parse_samsung_oneui(p, android_ver) {
+        return rom;
+    }
+
+    // OEM ROMs: OPPO / OnePlus / Realme
+    if let Some(rom) = parse_oppo_oneplus_realme(p) {
+        return rom;
+    }
+
+    // OEM ROMs: Huawei / Honor
+    if let Some(rom) = parse_huawei_honor(p) {
+        return rom;
+    }
+
+    // OEM ROMs: Transsion (Infinix / Tecno / itel)
+    if let Some(rom) = parse_transsion(p) {
+        return rom;
+    }
+
+    // OEM ROMs: Asus / Nothing / Motorola
+    if let Some(rom) = parse_other_oems(p, android_ver) {
+        return rom;
+    }
+
     // Known custom ROM props
     for (rtype, rname, keys, sep) in CUSTOM_ROMS {
         let v = first_prop(p, keys);
@@ -563,6 +1178,8 @@ pub fn detect_rom(p: &HashMap<String, String>, android_ver: &str) -> RomDetails 
         ("evolution", "Evolution X", "Evolution X"),
         ("crdroid", "crDroid", "crDroid Android"),
         ("graphene", "GrapheneOS", "GrapheneOS"),
+        ("pixelos", "PixelOS", "PixelOS"),
+        ("corvus", "Corvus OS", "Corvus OS"),
     ] {
         if combined.contains(needle) {
             return RomDetails {
@@ -575,6 +1192,17 @@ pub fn detect_rom(p: &HashMap<String, String>, android_ver: &str) -> RomDetails 
     }
 
     let android_short = if android_ver.is_empty() { "-".to_string() } else { format!("Android {}", android_ver) };
+
+    // Google Pixel Stock
+    let brand = first_prop(p, &["ro.product.brand", "ro.product.manufacturer"]).to_lowercase();
+    if brand == "google" && !combined.contains("aosp") {
+        return RomDetails {
+            rom_type: "Pixel".into(),
+            rom_name: "Google Pixel".into(),
+            short_version: android_short,
+            rom_version: build,
+        };
+    }
 
     if combined.contains("aosp") || flavor.starts_with("aosp_") {
         return RomDetails {
@@ -863,69 +1491,254 @@ pub async fn get_device_specs(serial: Option<String>) -> Result<DeviceSpecs, Str
 }
 
 // ---------------------------------------------------------------------------
-// Packages
+// Packages & Label Extraction
 // ---------------------------------------------------------------------------
+
+const LABEL_HELPER_BYTES: &[u8] = include_bytes!("../resources/ximi-pkglabels.jar");
+const LABEL_HELPER_DEVICE_PATH: &str = "/data/local/tmp/ximi-pkglabels.jar";
+
+static PROVISIONED_DEVICES: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+
+fn is_helper_provisioned(serial: &str) -> bool {
+    let map = PROVISIONED_DEVICES.get_or_init(|| Mutex::new(HashMap::new()));
+    let guard = map.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some(instant) = guard.get(serial) {
+        if instant.elapsed() < Duration::from_secs(3600) {
+            return true;
+        }
+    }
+    false
+}
+
+fn mark_helper_provisioned(serial: &str) {
+    let map = PROVISIONED_DEVICES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = map.lock().unwrap_or_else(|p| p.into_inner());
+    guard.insert(serial.to_string(), Instant::now());
+}
+
+fn invalidate_helper_provisioned(serial: &str) {
+    let map = PROVISIONED_DEVICES.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = map.lock().unwrap_or_else(|p| p.into_inner());
+    guard.remove(serial);
+}
+
+fn deploy_helper_if_needed(serial: Option<&str>) -> Result<(), String> {
+    let key = serial.unwrap_or("default");
+    if is_helper_provisioned(key) {
+        return Ok(());
+    }
+    let temp_jar = std::env::temp_dir().join("ximi-pkglabels.jar");
+    if !temp_jar.exists() || std::fs::metadata(&temp_jar).map(|m| m.len()).unwrap_or(0) != LABEL_HELPER_BYTES.len() as u64 {
+        std::fs::write(&temp_jar, LABEL_HELPER_BYTES)
+            .map_err(|e| format!("Failed to write helper jar locally: {}", e))?;
+    }
+    let (code, _out, err) = run_adb(serial, &["push", temp_jar.to_str().unwrap_or(""), LABEL_HELPER_DEVICE_PATH])?;
+    if code != 0 {
+        return Err(format!("Failed to push helper to device: {}", err.trim()));
+    }
+    mark_helper_provisioned(key);
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct RawPkgInfo {
+    pub package: String,
+    pub is_system: bool,
+    pub is_enabled: bool,
+    pub is_installed: bool,
+    pub label: String,
+}
+
+pub fn parse_pkg_labels_output(stdout: &str) -> Vec<RawPkgInfo> {
+    let mut list = Vec::new();
+    for line in stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 4 {
+            let pkg = parts[0].trim().to_string();
+            if pkg.is_empty() {
+                continue;
+            }
+            let is_system = parts[1].trim() == "1";
+            let is_enabled = parts[2].trim() == "1";
+            let is_installed = parts[3].trim() == "1";
+            let label = if parts.len() >= 5 {
+                parts[4].trim().to_string()
+            } else {
+                String::new()
+            };
+            list.push(RawPkgInfo {
+                package: pkg,
+                is_system,
+                is_enabled,
+                is_installed,
+                label,
+            });
+        }
+    }
+    list
+}
+
+fn run_pkg_labels_helper(serial: Option<&str>) -> Result<Vec<RawPkgInfo>, String> {
+    let key = serial.unwrap_or("default");
+    deploy_helper_if_needed(serial)?;
+
+    let cmd_str = format!("CLASSPATH={} app_process /system/bin XimiPkgLabels", LABEL_HELPER_DEVICE_PATH);
+    let (code, stdout, _stderr) = run_adb(serial, &["shell", &cmd_str])?;
+
+    if code != 0 || stdout.trim().is_empty() {
+        invalidate_helper_provisioned(key);
+        deploy_helper_if_needed(serial)?;
+        let (code2, stdout2, stderr2) = run_adb(serial, &["shell", &cmd_str])?;
+        if code2 != 0 || stdout2.trim().is_empty() {
+            return Err(format!("Helper execution failed: {}", stderr2.trim()));
+        }
+        return Ok(parse_pkg_labels_output(&stdout2));
+    }
+
+    Ok(parse_pkg_labels_output(&stdout))
+}
+
+fn fallback_pm_list_packages(serial: Option<&str>) -> Result<Vec<RawPkgInfo>, String> {
+    let (code, stdout, stderr) = run_adb(
+        serial,
+        &["shell", "pm list packages; echo @@; pm list packages -s; echo @@; pm list packages -d"],
+    )?;
+    if code != 0 {
+        return Err(format!("Failed to list packages: {}", explain_adb_error(&stderr)));
+    }
+    let mut parts = stdout.split("@@");
+    let all_part = parts.next().unwrap_or("");
+    let sys_part = parts.next().unwrap_or("");
+    let dis_part = parts.next().unwrap_or("");
+
+    let sys_set: std::collections::HashSet<&str> =
+        sys_part.lines().filter_map(|l| l.trim().strip_prefix("package:")).map(str::trim).collect();
+    let dis_set: std::collections::HashSet<&str> =
+        dis_part.lines().filter_map(|l| l.trim().strip_prefix("package:")).map(str::trim).collect();
+
+    let mut list = Vec::new();
+    for line in all_part.lines() {
+        if let Some(pkg) = line.trim().strip_prefix("package:").map(str::trim) {
+            if !pkg.is_empty() {
+                list.push(RawPkgInfo {
+                    package: pkg.to_string(),
+                    is_system: sys_set.contains(pkg),
+                    is_enabled: !dis_set.contains(pkg),
+                    is_installed: true,
+                    label: String::new(),
+                });
+            }
+        }
+    }
+    Ok(list)
+}
+
+fn humanize_package(pkg: &str) -> String {
+    let last = pkg.rsplit('.').next().unwrap_or(pkg);
+    let mut chars = last.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => pkg.to_string(),
+    }
+}
+
+type PkgCache = Mutex<HashMap<String, (Instant, Vec<RawPkgInfo>)>>;
+
+fn pkg_cache() -> &'static PkgCache {
+    static C: OnceLock<PkgCache> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub fn invalidate_pkg_cache(serial: Option<&str>) {
+    let key = serial.unwrap_or("default");
+    if let Ok(mut lock) = pkg_cache().lock() {
+        lock.remove(key);
+    }
+}
 
 #[tauri::command]
 pub async fn get_packages(serial: Option<String>, filter_mode: String) -> Result<Vec<PackageItem>, String> {
     blocking(move || {
-        let mut rest = vec!["shell", "pm", "list", "packages"];
-        match filter_mode.as_str() {
-            "3rd" => rest.push("-3"),
-            "system" => rest.push("-s"),
-            "disabled" => rest.push("-d"),
-            _ => {}
-        }
-        let (code, stdout, stderr) = run_adb(serial.as_deref(), &rest)?;
-        if code != 0 {
-            return Err(format!("Failed to list packages: {}", explain_adb_error(&stderr)));
-        }
+        let s_ref = serial.as_deref();
+        let s_key = s_ref.unwrap_or("default");
 
-        let installed: std::collections::HashSet<&str> = stdout
-            .lines()
-            .filter_map(|l| l.trim().strip_prefix("package:"))
-            .map(str::trim)
-            .collect();
+        let cached = {
+            let guard = pkg_cache().lock().unwrap_or_else(|p| p.into_inner());
+            guard.get(s_key).and_then(|(at, list)| {
+                if at.elapsed() < Duration::from_secs(8) {
+                    Some(list.clone())
+                } else {
+                    None
+                }
+            })
+        };
+
+        let raw_list = match cached {
+            Some(list) => list,
+            None => {
+                let list = match run_pkg_labels_helper(s_ref) {
+                    Ok(l) if !l.is_empty() => l,
+                    Ok(_) | Err(_) => fallback_pm_list_packages(s_ref)?,
+                };
+                pkg_cache()
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .insert(s_key.to_string(), (Instant::now(), list.clone()));
+                list
+            }
+        };
 
         let db = curated_db();
         let bloat_map: HashMap<&str, &BloatwareItem> = db.iter().map(|b| (b.package.as_str(), b)).collect();
 
         let mut result: Vec<PackageItem> = Vec::new();
-        if filter_mode == "recommended" {
-            for b in db.iter().filter(|b| installed.contains(b.package.as_str())) {
-                result.push(PackageItem {
-                    package: b.package.clone(),
-                    name: b.name.clone(),
-                    category: b.category.clone(),
-                    risk: b.risk.clone(),
-                    description: b.description.clone(),
-                    is_installed: true,
-                });
+        for item in raw_list {
+            let matches_filter = match filter_mode.as_str() {
+                "recommended" => item.is_installed && bloat_map.contains_key(item.package.as_str()),
+                "3rd" | "user" => item.is_installed && !item.is_system,
+                "system" => item.is_installed && item.is_system,
+                "disabled" => item.is_installed && !item.is_enabled,
+                "all" => item.is_installed,
+                "uninstalled" => !item.is_installed,
+                _ => item.is_installed,
+            };
+
+            if !matches_filter {
+                continue;
             }
-        } else {
-            for pkg in &installed {
-                if let Some(b) = bloat_map.get(pkg) {
-                    result.push(PackageItem {
-                        package: pkg.to_string(),
-                        name: b.name.clone(),
-                        category: b.category.clone(),
-                        risk: b.risk.clone(),
-                        description: b.description.clone(),
-                        is_installed: true,
-                    });
-                } else {
-                    result.push(PackageItem {
-                        package: pkg.to_string(),
-                        name: pkg.rsplit('.').next().unwrap_or(pkg).to_string(),
-                        category: "App".to_string(),
-                        risk: "Optional".to_string(),
-                        description: "-".to_string(),
-                        is_installed: true,
-                    });
-                }
-            }
+
+            let curated = bloat_map.get(item.package.as_str()).copied();
+            let name = if !item.label.is_empty() && item.label != item.package {
+                item.label
+            } else if let Some(b) = curated {
+                b.name.clone()
+            } else {
+                humanize_package(&item.package)
+            };
+
+            let (category, risk, description) = if let Some(b) = curated {
+                (b.category.clone(), b.risk.clone(), b.description.clone())
+            } else if item.is_system {
+                ("System".to_string(), "Optional".to_string(), "-".to_string())
+            } else {
+                ("3rd Party".to_string(), "Optional".to_string(), "-".to_string())
+            };
+
+            result.push(PackageItem {
+                package: item.package,
+                name,
+                category,
+                risk,
+                description,
+                is_installed: item.is_installed,
+            });
         }
-        result.sort_by(|a, b| a.package.cmp(&b.package));
+
+        result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         Ok(result)
     })
     .await
@@ -944,6 +1757,7 @@ fn pm_action(
     let (code, stdout, stderr) = run_adb(serial.as_deref(), &args)?;
     let low = stdout.to_lowercase();
     if code == 0 && ok_marker.iter().any(|m| low.contains(m)) {
+        invalidate_pkg_cache(serial.as_deref());
         Ok(format!("{} {}", ok_msg, package))
     } else {
         Err(if stdout.trim().is_empty() { stderr } else { stdout }.trim().to_string())
@@ -1356,5 +2170,95 @@ mod tests {
         let d = parse_devices(out);
         assert_eq!(d.len(), 2);
         assert_eq!(d[1].state, "unauthorized");
+    }
+
+    #[test]
+    fn vivo_funtouch_detection() {
+        let p = props(&[
+            ("ro.vivo.os.name", "Funtouch"),
+            ("ro.vivo.os.version", "4.5"),
+            ("ro.vivo.os.build.display.id", "Funtouch OS_4.5"),
+            ("ro.vivo.product.version", "PD1818EF_EX_A_1.12.2"),
+        ]);
+        let r = detect_rom(&p, "8.1.0");
+        assert_eq!(r.rom_type, "Funtouch OS");
+        assert_eq!(r.rom_name, "Vivo Funtouch OS");
+        assert_eq!(r.short_version, "4.5");
+        assert!(r.rom_version.contains("PD1818EF_EX_A_1.12.2"));
+    }
+
+    #[test]
+    fn samsung_oneui_detection() {
+        let p = props(&[
+            ("ro.build.version.oneui", "60100"),
+            ("ro.build.display.id", "UP1A.231005.007.S918BXXU3BWJM"),
+            ("ro.product.brand", "samsung"),
+        ]);
+        let r = detect_rom(&p, "14");
+        assert_eq!(r.rom_type, "One UI");
+        assert_eq!(r.rom_name, "Samsung One UI");
+        assert_eq!(r.short_version, "6.1");
+    }
+
+    #[test]
+    fn oppo_coloros_detection() {
+        let p = props(&[
+            ("ro.build.version.opporom", "V14.0.0"),
+            ("ro.build.display.id", "CPH2451_14.0.0.300(EX01)"),
+            ("ro.product.brand", "OPPO"),
+        ]);
+        let r = detect_rom(&p, "14");
+        assert_eq!(r.rom_type, "ColorOS");
+        assert_eq!(r.rom_name, "OPPO ColorOS");
+        assert_eq!(r.short_version, "14.0.0");
+    }
+
+    #[test]
+    fn transsion_xos_detection() {
+        let p = props(&[
+            ("ro.xos.version", "XOS 13.0.0"),
+            ("ro.product.brand", "Infinix"),
+        ]);
+        let r = detect_rom(&p, "13");
+        assert_eq!(r.rom_type, "XOS");
+        assert_eq!(r.rom_name, "Infinix XOS");
+        assert_eq!(r.short_version, "13.0.0");
+    }
+
+    #[test]
+    fn package_labels_parsing() {
+        let sample = "com.google.android.youtube\t1\t1\t1\tYouTube\ncom.vivo.easyshare\t0\t1\t1\tEasyShare\n";
+        let parsed = parse_pkg_labels_output(sample);
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0].package, "com.google.android.youtube");
+        assert_eq!(parsed[1].package, "com.vivo.easyshare");
+        assert_eq!(parsed[1].label, "EasyShare");
+        assert!(!parsed[1].is_system);
+    }
+
+    #[test]
+    fn live_connected_device_check() {
+        if let Ok((code, stdout, _)) = run_adb(None, &["devices"]) {
+            if code == 0 && stdout.contains("\tdevice") {
+                let devices = parse_devices(&stdout);
+                if let Some(dev) = devices.first() {
+                    let specs = collect_device_specs(&dev.serial).unwrap();
+                    println!("Live detected device: {} (Brand: {})", dev.serial, specs.brand);
+                    println!("ROM Type: {}, Name: {}, Short: {}, Full: {}", specs.rom_type, specs.rom_name, specs.hyperos_short, specs.rom_version);
+                    assert!(!specs.rom_type.is_empty());
+                    assert_ne!(specs.rom_type, "-");
+
+                    let raw_pkgs = run_pkg_labels_helper(Some(&dev.serial)).unwrap();
+                    println!("Total live packages extracted with labels: {}", raw_pkgs.len());
+                    assert!(raw_pkgs.len() > 50);
+                    let labeled = raw_pkgs.iter().filter(|p| !p.label.is_empty() && p.label != p.package).count();
+                    println!("Packages with real UI display label string: {}", labeled);
+                    for p in raw_pkgs.iter().filter(|p| !p.label.is_empty() && p.label != p.package).take(5) {
+                        println!("  Sample app: {} -> '{}'", p.package, p.label);
+                    }
+                    assert!(labeled > 20);
+                }
+            }
+        }
     }
 }

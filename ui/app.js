@@ -541,10 +541,13 @@ async function loadDeviceSpecs(serial) {
     // Quick specs ROM
     const qsRom = document.getElementById('qs-hyperos');
     if (qsRom) {
+      const shortVer = specs.hyperos_short && specs.hyperos_short !== '-' ? specs.hyperos_short : (romVer !== '-' ? romVer : '');
       if (romType === 'HyperOS' || romType === 'MIUI') {
-        qsRom.textContent = `${romType} ${specs.hyperos_short || romVer}`;
+        qsRom.textContent = shortVer ? `${romType} ${shortVer}` : romType;
+      } else if (shortVer) {
+        qsRom.textContent = `${romName} (${shortVer})`;
       } else {
-        qsRom.textContent = `${romName} (${specs.hyperos_short || romVer})`;
+        qsRom.textContent = romName;
       }
     }
 
@@ -556,8 +559,10 @@ async function loadDeviceSpecs(serial) {
     if (romType === 'HyperOS' || romType === 'MIUI') {
       const brand = specs.brand && specs.brand !== '-' ? specs.brand : 'Xiaomi';
       bannerTitle = `${brand} ${romType}`;
-    } else {
+    } else if (romType === 'AOSP' || romType === 'AOSP / Custom') {
       bannerTitle = `${romName} (AOSP)`;
+    } else {
+      bannerTitle = romName;
     }
 
     document.getElementById('ap-brand-title').textContent = bannerTitle;
